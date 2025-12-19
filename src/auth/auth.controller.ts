@@ -224,7 +224,10 @@ async googleSuccess(@Query('token') token: string) {
     return this.authService.googleEmailVerify(body.email, body.otp);
   }
   // TEST GOOGLE LOGIN (your old test route)
-
+// @Get('google/callback')
+//   async googleCallback(@Query('code') code: string) {
+//     return this.authService.googleCallback(code);
+//   }
   @Get('google/test')
   async testGoogleLogin(@Query('email') email: string) {
     return this.authService.googleTestLogin(email);

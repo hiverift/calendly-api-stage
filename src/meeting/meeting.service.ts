@@ -23,46 +23,114 @@ export class MeetingsService {
     @InjectModel(Meeting.name)
     private readonly meetingModel: Model<MeetingDocument>,
   ) {}
-   async bookMeeting(user: any, dto: CreateMeetingDto) {
-    /** 1️⃣ Parse datetime using USER timezone */
-    const bookingDateTime = DateTime.fromFormat(
-      `${dto.selectedDate} ${dto.selectedTime}`,
-      'yyyy-MM-dd HH:mm',
-      { zone: dto.timeZone },
-    );
+  //  async bookMeeting(user: any, dto: CreateMeetingDto) {
+  //   /** 1️⃣ Parse datetime using USER timezone */
+  //   const bookingDateTime = DateTime.fromFormat(
+  //     `${dto.selectedDate} ${dto.selectedTime}`,
+  //     'yyyy-MM-dd HH:mm',
+  //     { zone: dto.timeZone },
+  //   );
 
-    if (!bookingDateTime.isValid) {
-      throw new BadRequestException('Invalid date or time format');
-    }
+  //   if (!bookingDateTime.isValid) {
+  //     throw new BadRequestException('Invalid date or time format');
+  //   }
 
-    if (bookingDateTime < DateTime.now().setZone(dto.timeZone)) {
-      throw new BadRequestException('Cannot book a meeting in the past');
-    }
+  //   if (bookingDateTime < DateTime.now().setZone(dto.timeZone)) {
+  //     throw new BadRequestException('Cannot book a meeting in the past');
+  //   }
 
-    /** 2️⃣ Convert to UTC for DB */
-    const startTimeUtc = bookingDateTime.toUTC();
-    const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
+  //   /** 2️⃣ Convert to UTC for DB */
+  //   const startTimeUtc = bookingDateTime.toUTC();
+  //   const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
 
-    /** 3️⃣ Generate meeting link */
-    const slug = uuidv4();
-    const meetingUrl = `https://yourapp.com/meet/${slug}`;
+  //   /** 3️⃣ Generate meeting link */
+  //   const slug = uuidv4();
+  //   const meetingUrl = `https://yourapp.com/meet/${slug}`;
 
-    /** 4️⃣ Save everything dynamically */
-    const meeting = await this.meetingModel.create({
-      userEmail: user.email, // ✅ dynamic from auth
-      ...dto,               // ✅ all frontend-controlled
-      startTime: startTimeUtc.toJSDate(),
-      endTime: endTimeUtc.toJSDate(),
-      slug,
-      meetingUrl,
-    });
+  //   /** 4️⃣ Save everything dynamically */
+  //   const meeting = await this.meetingModel.create({
+  //     userEmail: user.email, // ✅ dynamic from auth
+  //     ...dto,               // ✅ all frontend-controlled
+  //     startTime: startTimeUtc.toJSDate(),
+  //     endTime: endTimeUtc.toJSDate(),
+  //     slug,
+  //     meetingUrl,
+  //   });
 
-    return {
-      statusCode: 201,
-      message: 'Meeting booked successfully',
-      data: meeting,
-    };
+  //   return {
+  //     statusCode: 201,
+  //     message: 'Meeting booked successfully',
+  //     data: meeting,
+  //   };
+  // }
+async bookMeeting(user: any, dto: CreateMeetingDto) {
+
+  /** 1️⃣ Parse datetime using selected timezone */
+  const bookingDateTime = DateTime.fromFormat(
+    `${dto.selectedDate} ${dto.selectedTime}`,
+    'yyyy-MM-dd HH:mm',
+    { zone: dto.timezone }
+  );
+
+  if (!bookingDateTime.isValid) {
+    throw new BadRequestException('Invalid date or time');
   }
+
+  /** 2️⃣ Prevent past booking */
+  if (bookingDateTime < DateTime.now().setZone(dto.timezone)) {
+    throw new BadRequestException('Cannot book meeting in the past');
+  }
+
+  /** 3️⃣ Convert to UTC */
+  const startTimeUtc = bookingDateTime.toUTC();
+  const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
+
+  /** 4️⃣ Prevent overlapping meetings */
+  const conflict = await this.meetingModel.findOne({
+    userEmail: user.email,
+    startTime: { $lt: endTimeUtc.toJSDate() },
+    endTime: { $gt: startTimeUtc.toJSDate() },
+  });
+
+  if (conflict) {
+    throw new BadRequestException('Time slot already booked');
+  }
+
+  /** 5️⃣ Generate meeting URL */
+  const slug = uuidv4();
+  const meetingUrl = `https://yourapp.com/meet/${slug}`;
+
+  /** 6️⃣ Save meeting (ONLY allowed fields) */
+  const meeting = await this.meetingModel.create({
+    userEmail: user.email,             
+    userName: user.name,               
+
+    meetingTitle: dto.meetingTitle,
+    duration: dto.duration,
+    callType: dto.callType,
+    whoCallsWho: dto.whoCallsWho,
+
+    selectedDate: dto.selectedDate,
+    selectedTime: dto.selectedTime,
+    timezone: dto.timezone,
+
+    hosts: dto.hosts,
+    contacts: dto.contacts || [],
+    contactQuestions: dto.contactQuestions || [],
+
+    startTime: startTimeUtc.toJSDate(),
+    endTime: endTimeUtc.toJSDate(),
+
+    slug,
+    meetingUrl,
+  });
+
+  return {
+    statusCode: 201,
+    message: 'Meeting booked successfully',
+    data: meeting,
+  };
+}
 
 //   async bookMeeting(user: any, dto: CreateMeetingDto)
 //  {

@@ -33,6 +33,9 @@ import { JwtStrategy } from './guards/jwt.strategy';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserModule } from 'src/user/user.module';
+import { GoogleService } from '../google/google.service';
+import { GoogleController } from 'src/google/google.Controller';
+import { GoogleModule } from 'src/google/google.module';
 
 @Module({
   imports: [
@@ -42,11 +45,13 @@ import { UserModule } from 'src/user/user.module';
       signOptions: { expiresIn: '7d' },
     }),
     UserModule,
+    GoogleModule,
   ],
   providers: [
     AuthService,
     GoogleStrategy,
-    JwtStrategy,   
+    JwtStrategy, 
+    
   ],
   controllers: [AuthController],
   exports: [PassportModule, JwtStrategy],  

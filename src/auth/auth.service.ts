@@ -8,6 +8,7 @@ import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { UserDocument } from '../user/entities/user.entity';
+import { GoogleService } from '../google/google.service';
 import { sendEmailOtp } from './mail.util';
 
 
@@ -15,6 +16,7 @@ import { sendEmailOtp } from './mail.util';
 export class AuthService {
  
   userModel: any;
+  googleService: any;
  
   constructor(
     private readonly userService: UserService,
@@ -236,6 +238,16 @@ generateToken(user: any) {
       statusCode: 200,
       message: 'Password reset successful',
     };
+  }
+   async googleCallback(code: string) {
+    const oauthClient = this.googleService.getClient();
+
+    const { tokens } = await oauthClient.getToken(code);
+
+    // Abhi sirf test ke liye
+    console.log('GOOGLE TOKENS 👉', tokens);
+
+    return tokens;
   }
   // google test login
   async googleTestLogin(email: string) {

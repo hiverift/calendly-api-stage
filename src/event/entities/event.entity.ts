@@ -4,19 +4,7 @@ import { Document, Types } from 'mongoose';
 
 export type EventTypeDocument = EventType & Document;
 
-// interface Slot {
-//   start: string;
-//   end: string;
-// }
 
-// interface RecurringSlot {
-//   end: any;
-//   start: any;
-//   available: any;
-//   _id: string;
-//   day: string;
-//   slots: Slot[];
-// }
 interface Slot {
   start: string;
   end: string;
@@ -44,21 +32,67 @@ export interface Schedule {
   dateOverrides: DateOverride[];
 }
 
+// @Schema({ timestamps: true })
+// export class EventType {
+//   @Prop({ required: true })
+//   title: string;
+
+//   @Prop()
+//   type: string; // one-on-one, group, etc.
+
+//   @Prop()
+//   duration: number; // in minutes
+
+//   @Prop()
+//   mode: string; // single, recurring, both
+
+//   @Prop({ type: [{ 
+//     _id: String,
+//     name: { type: String, required: true },
+//     isActive: { type: Boolean, default: true },
+//     recurring: [{ _id: String, day: String, slots: [{ start: String, end: String }] }],
+//     dateOverrides: [{ _id: String, date: String, slots: [{ start: String, end: String }], isUnavailable: Boolean }]
+//   }], default: [] })
+//   schedules: Schedule[];
+
+ 
+//   @Prop({ default: 10 })
+//   maxBookingsPerDay: number;
+
+//   @Prop({ default: 'UTC' })
+//   timezone: string;
+
+//   @Prop()
+//   location: string;
+
+//   @Prop()
+//   userId: string;
+
+//   @Prop()
+//   slug: string;
+
+//   // Optional root-level active flag
+//   @Prop({ default: true })
+//   isActive: boolean;
+// }
 @Schema({ timestamps: true })
 export class EventType {
+  @Prop({ type: String, default: () => new Types.ObjectId().toHexString() })
+  _id: string;  // <- force root _id to be string
+
   @Prop({ required: true })
   title: string;
 
   @Prop()
-  type: string; // one-on-one, group, etc.
+  type: string;
 
   @Prop()
-  duration: number; // in minutes
+  duration: number;
 
   @Prop()
-  mode: string; // single, recurring, both
+  mode: string;
 
-  @Prop({ type: [{ 
+  @Prop({ type: [{
     _id: String,
     name: { type: String, required: true },
     isActive: { type: Boolean, default: true },
@@ -66,15 +100,6 @@ export class EventType {
     dateOverrides: [{ _id: String, date: String, slots: [{ start: String, end: String }], isUnavailable: Boolean }]
   }], default: [] })
   schedules: Schedule[];
-
-  // @Prop({ type: [{ day: String, start: String, end: String }] })
-  // weeklyAvailability: { day: string; start: string; end: string }[];
-
-  // @Prop({ type: [{ date: Date, start: String, end: String }] })
-  // singleDayAvailability: { date: Date; start: string; end: string }[];
-
-  // @Prop({ type: [{ date: Date, slotTaken: Boolean }] })
-  // exceptions: { date: Date; slotTaken: boolean }[];
 
   @Prop({ default: 10 })
   maxBookingsPerDay: number;
@@ -91,7 +116,6 @@ export class EventType {
   @Prop()
   slug: string;
 
-  // Optional root-level active flag
   @Prop({ default: true })
   isActive: boolean;
 }

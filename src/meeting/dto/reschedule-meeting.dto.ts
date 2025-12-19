@@ -29,3 +29,8 @@ export class RescheduleMeetingDto {
   @IsNumber()
   duration?: number;
 }
+// const newTime = DateTime.fromFormat(
+//   `${dto.selectedDate} ${dto.selectedTime}`,
+//   'yyyy-MM-dd HH:mm',
+//   { zone: dto.timezone }
+// );
