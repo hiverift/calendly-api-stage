@@ -7,175 +7,132 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { RescheduleMeetingDto } from './dto/reschedule-meeting.dto';
-
-// IMPORT MONGOOSE ENTITY (NOT DTO)
 import { Meeting, MeetingDocument } from './entities/meeting.entity';
-
-
+import { CallType, WhoCallsWho } from './dto/meeting.enums.dto';
+import { User, UserDocument } from '../user/entities/user.entity';
 
 @Injectable()
 export class MeetingsService {
-  // book(dto: CreateMeetingDto, user: any) {
-  //   throw new Error('Method not implemented.');
-  // }
-
   constructor(
     @InjectModel(Meeting.name)
     private readonly meetingModel: Model<MeetingDocument>,
-  ) {}
-  //  async bookMeeting(user: any, dto: CreateMeetingDto) {
-  //   /** 1️⃣ Parse datetime using USER timezone */
-  //   const bookingDateTime = DateTime.fromFormat(
-  //     `${dto.selectedDate} ${dto.selectedTime}`,
-  //     'yyyy-MM-dd HH:mm',
-  //     { zone: dto.timeZone },
-  //   );
 
-  //   if (!bookingDateTime.isValid) {
-  //     throw new BadRequestException('Invalid date or time format');
-  //   }
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>, // dynamic host info
+  ) { }
 
-  //   if (bookingDateTime < DateTime.now().setZone(dto.timeZone)) {
-  //     throw new BadRequestException('Cannot book a meeting in the past');
-  //   }
+  // -------- BOOK MEETING ------
+  async bookMeeting(user: any, dto: CreateMeetingDto) {
+    // ------- VALIDATION -------
+    if (dto.callType === CallType.PHONE_CALL) {
+      if (dto.whoCallsWho === WhoCallsWho.INVITEE_CALLS_HOST) {
+        if (!dto.hosts || dto.hosts.length === 0) {
+          throw new BadRequestException(
+            'At least one host is required for invitee to call host',
+          );
+        }
+      }
 
-  //   /** 2️⃣ Convert to UTC for DB */
-  //   const startTimeUtc = bookingDateTime.toUTC();
-  //   const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
+      if (dto.whoCallsWho === WhoCallsWho.HOST_CALLS_INVITEE) {
+        if (!dto.callDetails?.inviteePhone) {
+          throw new BadRequestException(
+            'Invitee phone number is required when host calls invitee',
+          );
+        }
+      }
+    }
 
-  //   /** 3️⃣ Generate meeting link */
-  //   const slug = uuidv4();
-  //   const meetingUrl = `https://yourapp.com/meet/${slug}`;
+    // ------ DATE & TIME ------
+    const bookingDateTime = DateTime.fromFormat(
+      `${dto.selectedDate} ${dto.selectedTime}`,
+      'yyyy-MM-dd HH:mm',
+      { zone: dto.timezone },
+    );
 
-  //   /** 4️⃣ Save everything dynamically */
-  //   const meeting = await this.meetingModel.create({
-  //     userEmail: user.email, // ✅ dynamic from auth
-  //     ...dto,               // ✅ all frontend-controlled
-  //     startTime: startTimeUtc.toJSDate(),
-  //     endTime: endTimeUtc.toJSDate(),
-  //     slug,
-  //     meetingUrl,
-  //   });
+    if (!bookingDateTime.isValid) {
+      throw new BadRequestException('Invalid date or time');
+    }
 
-  //   return {
-  //     statusCode: 201,
-  //     message: 'Meeting booked successfully',
-  //     data: meeting,
-  //   };
-  // }
-async bookMeeting(user: any, dto: CreateMeetingDto) {
+    if (bookingDateTime < DateTime.now().setZone(dto.timezone)) {
+      throw new BadRequestException('Cannot book meeting in the past');
+    }
 
-  /** 1️⃣ Parse datetime using selected timezone */
-  const bookingDateTime = DateTime.fromFormat(
-    `${dto.selectedDate} ${dto.selectedTime}`,
-    'yyyy-MM-dd HH:mm',
-    { zone: dto.timezone }
-  );
+    const startTimeUtc = bookingDateTime.toUTC();
+    const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
 
-  if (!bookingDateTime.isValid) {
-    throw new BadRequestException('Invalid date or time');
+    const conflict = await this.meetingModel.findOne({
+      userEmail: user.email,
+      startTime: { $lt: endTimeUtc.toJSDate() },
+      endTime: { $gt: startTimeUtc.toJSDate() },
+    });
+
+    if (conflict) {
+      throw new BadRequestException('Time slot already booked');
+    }
+
+    // ------- FETCH HOST INFO DYNAMICALLY ----
+    const hostEmails = dto.hosts.map(h => h.email);
+
+    const hostsFromDb = await this.userModel.find({ email: { $in: hostEmails } });
+
+    if (!hostsFromDb || hostsFromDb.length === 0) {
+      throw new BadRequestException('Selected host(s) not found');
+    }
+
+    const formattedHosts = hostsFromDb.map(h => ({
+      name: h.name,
+      email: h.email,
+      // phoneNumber: dto.callDetails?.hostPhone || '',
+      timeZone: h.timeZone || dto.timezone,
+    }));
+
+    // ------ CREATE MEETING ------
+    const slug = uuidv4();
+    const meetingUrl = `https://yourapp.com/meet/${slug}`;
+
+    const meeting = await this.meetingModel.create({
+      userEmail: user.email,
+      userName: user.name,
+      meetingTitle: dto.meetingTitle,
+      duration: dto.duration,
+      callType: dto.callType,
+      whoCallsWho: dto.whoCallsWho,
+      selectedDate: dto.selectedDate,
+      selectedTime: dto.selectedTime,
+      timezone: dto.timezone,
+
+      hosts: formattedHosts,
+      contacts: dto.contacts || [],
+      contactQuestions: dto.contactQuestions || [],
+      callDetails: dto.callDetails || {},
+
+      startTime: startTimeUtc.toJSDate(),
+      endTime: endTimeUtc.toJSDate(),
+      slug,
+      meetingUrl,
+    });
+    return {
+      statusCode: 201,
+      message: 'Meeting booked successfully',
+      data: {
+        ...meeting.toObject(),          // original meeting document
+        inviteePhone: dto.callDetails?.inviteePhone || null,
+        hostPhone: dto.callDetails?.hostPhone || null,
+      },
+    };
   }
 
-  /** 2️⃣ Prevent past booking */
-  if (bookingDateTime < DateTime.now().setZone(dto.timezone)) {
-    throw new BadRequestException('Cannot book meeting in the past');
+  // ------GET UPCOMING MEETINGS ------
+  async getUpcomingMeetings(userEmail: string) {
+    return this.meetingModel
+      .find({
+        userEmail,
+        startTime: { $gte: new Date() },
+      })
+      .sort({ startTime: 1 });
   }
 
-  /** 3️⃣ Convert to UTC */
-  const startTimeUtc = bookingDateTime.toUTC();
-  const endTimeUtc = startTimeUtc.plus({ minutes: dto.duration });
-
-  /** 4️⃣ Prevent overlapping meetings */
-  const conflict = await this.meetingModel.findOne({
-    userEmail: user.email,
-    startTime: { $lt: endTimeUtc.toJSDate() },
-    endTime: { $gt: startTimeUtc.toJSDate() },
-  });
-
-  if (conflict) {
-    throw new BadRequestException('Time slot already booked');
-  }
-
-  /** 5️⃣ Generate meeting URL */
-  const slug = uuidv4();
-  const meetingUrl = `https://yourapp.com/meet/${slug}`;
-
-  /** 6️⃣ Save meeting (ONLY allowed fields) */
-  const meeting = await this.meetingModel.create({
-    userEmail: user.email,             
-    userName: user.name,               
-
-    meetingTitle: dto.meetingTitle,
-    duration: dto.duration,
-    callType: dto.callType,
-    whoCallsWho: dto.whoCallsWho,
-
-    selectedDate: dto.selectedDate,
-    selectedTime: dto.selectedTime,
-    timezone: dto.timezone,
-
-    hosts: dto.hosts,
-    contacts: dto.contacts || [],
-    contactQuestions: dto.contactQuestions || [],
-
-    startTime: startTimeUtc.toJSDate(),
-    endTime: endTimeUtc.toJSDate(),
-
-    slug,
-    meetingUrl,
-  });
-
-  return {
-    statusCode: 201,
-    message: 'Meeting booked successfully',
-    data: meeting,
-  };
-}
-
-//   async bookMeeting(user: any, dto: CreateMeetingDto)
-//  {
-
-//     const dateTimeString = `${dto.selectedDate} ${dto.selectedTime}`;
-//     const bookingDateTime = DateTime.fromFormat(
-//   dateTimeString,
-//   'yyyy-MM-dd HH:mm'
-// );
-
-
-//     if (!bookingDateTime.isValid) {
-//       throw new BadRequestException('Invalid date or time format');
-//     }
-
-//     if (bookingDateTime < DateTime.local()) {
-//       throw new BadRequestException('Cannot book a meeting in the past');
-//     }
-
-//     const slug = uuidv4();
-//     const meetingUrl = `https://yourapp.com/meet/${slug}`;
-
-//     const meeting = await this.meetingModel.create({
-//       userEmail: user.email,
-//       meetingTitle: dto.meetingTitle,
-//       duration: dto.duration,
-//       callType: dto.callType,
-//       whoCallsWho: dto.whoCallsWho,
-//       inviteePhoneNumber: dto.inviteePhoneNumber,
-//       hosts: dto.hosts,
-//       contacts: dto.contacts || [],
-//       contactQuestions: dto.contactQuestions || [],
-//       startTime: bookingDateTime.toJSDate(),
-//       endTime: bookingDateTime.plus({ minutes: dto.duration }).toJSDate(),
-//       slug,
-//       meetingUrl,
-//     });
-
-//     return {
-//       statusCode: 201,
-//       message: 'Meeting booked successfully',
-//       data: meeting,
-//     };
-//   }
-
+  // --------- GET PAST MEETINGS ----
   async getPastMeetings(userEmail: string) {
     return this.meetingModel.find({
       userEmail,
@@ -183,48 +140,72 @@ async bookMeeting(user: any, dto: CreateMeetingDto) {
     });
   }
 
-  async rescheduleMeeting(id: string, dto: RescheduleMeetingDto) {
-
-    const dateTimeString = `${dto.selectedDate} ${dto.selectedTime}`;
-    const newTime = DateTime.fromFormat(dateTimeString, 'yyyy-MM-dd hh:mm a');
-
-    if (!newTime.isValid) {
-      throw new BadRequestException('Invalid date or time format');
+  // ------ GET MEETING BY ID ----
+  async getMeetingById(id: string, userEmail: string) {
+    const meeting = await this.meetingModel.findOne({ _id: id, userEmail });
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
     }
+    return meeting;
+  }
 
-    const meeting = await this.meetingModel.findById(id);
+  // ----- RESCHEDULE MEETING ----
+  async rescheduleMeeting(
+    id: string,
+    dto: RescheduleMeetingDto,
+    userEmail: string,
+  ) {
+    const meeting = await this.meetingModel.findOne({ _id: id, userEmail });
     if (!meeting) {
       throw new NotFoundException('Meeting not found');
     }
 
-    const duration = dto.duration || meeting.duration;
+    const newStart = DateTime.fromFormat(
+      `${dto.selectedDate} ${dto.selectedTime}`,
+      'yyyy-MM-dd HH:mm',
+      { zone: meeting.timezone },
+    );
 
-    meeting.startTime = newTime.toJSDate();
-    meeting.endTime = newTime.plus({ minutes: duration }).toJSDate();
-
-    await meeting.save();
-
-    return {
-      statusCode: 200,
-      message: 'Meeting rescheduled successfully',
-      data: meeting,
-    };
-  }
-
-  async deleteMeeting(id: string) {
-    const deleted = await this.meetingModel.findByIdAndDelete(id);
-    if (!deleted) {
-      throw new NotFoundException('Meeting not found');
+    if (!newStart.isValid) {
+      throw new BadRequestException('Invalid date or time');
     }
 
-    return {
-      statusCode: 200,
-      message: 'Meeting deleted successfully',
-      data: deleted,
-    };
+    if (newStart < DateTime.now().setZone(meeting.timezone)) {
+      throw new BadRequestException('Cannot reschedule to a past time');
+    }
+
+    const newEnd = newStart.plus({ minutes: dto.duration || meeting.duration });
+
+    const conflict = await this.meetingModel.findOne({
+      userEmail,
+      _id: { $ne: meeting._id },
+      startTime: { $lt: newEnd.toJSDate() },
+      endTime: { $gt: newStart.toJSDate() },
+    });
+
+    if (conflict) {
+      throw new BadRequestException('Time slot already booked');
+    }
+
+    meeting.startTime = newStart.toUTC().toJSDate();
+    meeting.endTime = newEnd.toUTC().toJSDate();
+    meeting.selectedDate = dto.selectedDate;
+    meeting.selectedTime = dto.selectedTime;
+    meeting.duration = dto.duration || meeting.duration;
+
+    await meeting.save();
+    return meeting;
   }
 
-  // Optional – only if controller needs it
+  // -------- DELETE MEETING -------
+  async deleteMeeting(id: string, userEmail: string) {
+    const meeting = await this.meetingModel.findOneAndDelete({ _id: id, userEmail });
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
+    }
+    return meeting;
+  }
+//GET TIME SLOTS
   getTimeSlots(date: string, duration: number) {
     const slots: string[] = [];
     const start = new Date(`${date}T00:00:00`);

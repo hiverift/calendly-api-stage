@@ -16,6 +16,8 @@ import { ScheduleModule } from './schedule/schedule.module';
 // import { AvailableModule } from './available/available.module';
 import { AvailabilityModule } from './available/available.module';
 import { GoogleModule } from './google/google.module';
+import { SlotsModule } from './slots/slots.module';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 
 import * as dotenv from 'dotenv';
 dotenv.config({ path: './.env' });
@@ -43,6 +45,8 @@ dotenv.config({ path: './.env' });
     ScheduleModule,
     AvailabilityModule,
     GoogleModule,
+    SlotsModule,
+    GoogleCalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],

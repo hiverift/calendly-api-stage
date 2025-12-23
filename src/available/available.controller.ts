@@ -9,44 +9,64 @@ import { CreateAvailabilityDto } from './dto/create-available.dto';
 @UseGuards(AuthGuard('jwt'))
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}
+@Post()
+async createAvailability(
+  @Body() body: CreateAvailabilityDto,
+  @Req() req,
+) {
+  const data = await this.availabilityService.create(
+    body,
+    req.user.id,
+  );
 
-  @Post()
-  async createAvailability(
-    @Body() body: CreateAvailabilityDto,
-    @Req() req,
-  ) {
-    return {
-      success: true,
-      data: await this.availabilityService.create(
-        body,
-        req.user.id,
-      ),
-    };
-  }
-  @Get('schedule/:scheduleId')
+  return {
+    statusCode: 201,
+    message: 'Availability created successfully',
+    result: data,
+  };
+}
+
+  
+@Get('schedule/:scheduleId')
 async getAvailabilityBySchedule(
   @Param('scheduleId') scheduleId: string,
   @Req() req,
 ) {
+  const data = await this.availabilityService.getByScheduleId(
+    scheduleId,
+    req.user.id,
+  );
+
   return {
-    success: true,
-    data: await this.availabilityService.getByScheduleId(
-      scheduleId,
-      req.user.id,
-    ),
+    statusCode: 200,
+    message: 'Availability fetched successfully',
+    result: data,
   };
 }
+
 @Get()
-getMonthAvailability(
+async getByMonth(
   @Query('month') month: string,
-  @Query('scheduleId') scheduleId: string, // OPTIONAL
+  @Query('scheduleId') scheduleId: string,
+  @Query('eventId') eventId: string,
+  @Query('useGoogleCalendar') useGoogleCalendar: string,
   @Req() req,
 ) {
-  return this.availabilityService.getByMonth(
+  const data = await this.availabilityService.getByMonth(
     month,
-    req.user._id,
-    scheduleId || undefined,
+    req.user.id,
+    scheduleId,
+    useGoogleCalendar === 'true',
+    eventId,
   );
+
+  return {
+    statusCode: 200,
+    message: 'Monthly availability fetched successfully',
+    result: data, // REAL DATA
+  };
 }
+
+
 
 }

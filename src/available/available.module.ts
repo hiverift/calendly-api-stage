@@ -6,12 +6,15 @@ import {
 } from './entities/available.entity';
 import { AvailabilityService } from './available.service';
 import { AvailabilityController } from './available.controller';
+import {GoogleCalendarModule  } from '../google-calendar/google-calendar.module'; 
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Availability.name, schema: AvailabilitySchema },
+   
     ]),
+   GoogleCalendarModule ,
   ],
   controllers: [AvailabilityController],
   providers: [AvailabilityService],

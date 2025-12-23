@@ -12,6 +12,8 @@ export class User {
 
   @Prop({ required: true, unique: true })
   email: string;
+   @Prop() // optional if not always present
+  phoneNumber?: string;
 
   @Prop({ type: String, required: false, default: null })
   password: string;

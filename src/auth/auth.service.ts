@@ -14,15 +14,15 @@ import { sendEmailOtp } from './mail.util';
 
 @Injectable()
 export class AuthService {
- 
+
   userModel: any;
   googleService: any;
- 
+
   constructor(
     private readonly userService: UserService,
     private readonly jwt: JwtService,
   ) { }
-    async googleEmailRequest(email: string) {
+  async googleEmailRequest(email: string) {
     let user = await this.userService.findByEmailUser(email);
 
     // If no user → auto signup with google provider
@@ -130,76 +130,76 @@ export class AuthService {
 
 
   async login(email: string, password: string) {
-  const user = await this.userService.findByEmailUser(email);
-  if (!user) throw new UnauthorizedException('User not found');
+    const user = await this.userService.findByEmailUser(email);
+    if (!user) throw new UnauthorizedException('User not found');
 
-  // If user registered via Google → block manual login
-  if (user.provider === 'google') {
-    throw new BadRequestException(
-      'This email is registered with Google. Please use Google login.'
-    );
-  }
+    // If user registered via Google → block manual login
+    if (user.provider === 'google') {
+      throw new BadRequestException(
+        'This email is registered with Google. Please use Google login.'
+      );
+    }
 
-  // If password is missing
-  if (!user.password) {
-    throw new UnauthorizedException('Password not set for this account.');
-  }
+    // If password is missing
+    if (!user.password) {
+      throw new UnauthorizedException('Password not set for this account.');
+    }
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) throw new UnauthorizedException('Invalid credentials');
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-  const token = this.jwt.sign({
-    id: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
+    const token = this.jwt.sign({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    });
 
-  return {
-    statusCode: 200,
-    message: 'Login successful',
-    result: {
-      access_token: token,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
+    return {
+      statusCode: 200,
+      message: 'Login successful',
+      result: {
+        access_token: token,
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
       },
-    },
-  };
-}
-async validateGoogleUser(profile: any) {
-  const { id, displayName, emails, photos } = profile;
+    };
+  }
+  async validateGoogleUser(profile: any) {
+    const { id, displayName, emails, photos } = profile;
 
-  // look for user with this google id
-  let user = await this.userService.findByGoogleId(id);
+    // look for user with this google id
+    let user = await this.userService.findByGoogleId(id);
 
-  if (!user) {
-    user = await this.userService.create({
-      googleId: id,
-      name: displayName,
-      email: emails[0].value,
-      avatar: photos?.[0]?.value || null,
-      provider: 'google',
-      password: '',
-      role: 'user',
+    if (!user) {
+      user = await this.userService.create({
+        googleId: id,
+        name: displayName,
+        email: emails[0].value,
+        avatar: photos?.[0]?.value || null,
+        provider: 'google',
+        password: '',
+        role: 'user',
+      });
+    }
+
+    return user;
+  }
+
+  generateToken(user: any) {
+    console.log('user get info', user)
+    return this.jwt.sign({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
     });
   }
 
-  return user;
-}
 
-generateToken(user: any) {
-  console.log('user get info', user)
-  return this.jwt.sign({
-    id: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
-}
-
-
-// forgot password
+  // forgot password
   async forgotPassword(email: string) {
     const user = (await this.userService.findByEmailUser(email)) as UserDocument;
     if (!user) throw new BadRequestException('No user found');
@@ -212,7 +212,7 @@ generateToken(user: any) {
       result: { token },
     };
   }
-// reset password
+  // reset password
   async resetPassword(token: string, newPassword: string) {
     let payload: { id: string };
 
@@ -239,53 +239,50 @@ generateToken(user: any) {
       message: 'Password reset successful',
     };
   }
-   async googleCallback(code: string) {
+  async googleCallback(code: string) {
     const oauthClient = this.googleService.getClient();
 
     const { tokens } = await oauthClient.getToken(code);
 
     // Abhi sirf test ke liye
-    console.log('GOOGLE TOKENS 👉', tokens);
+    console.log('GOOGLE TOKENS ', tokens);
 
     return tokens;
   }
   // google test login
   async googleTestLogin(email: string) {
-  let user = await this.userService.findByEmailUser(email);
+    let user = await this.userService.findByEmailUser(email);
 
-  if (!user) {
-    user = await this.userService.create({
-      name: 'Google Test User',
-      email,
-      provider: 'google',
-      role: 'user',
-      password: '',
-    });
-  }
-
-  const token = this.jwt.sign({
-    id: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
-
-  return {
-    statusCode: 200,
-    message: 'Google test login successful',
-    result: {
-      access_token: token,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        provider: user.provider,
-        role: user.role,
-      }
+    if (!user) {
+      user = await this.userService.create({
+        name: 'Google Test User',
+        email,
+        provider: 'google',
+        role: 'user',
+        password: '',
+      });
     }
-  };
-}
 
+    const token = this.jwt.sign({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    });
 
-
+    return {
+      statusCode: 200,
+      message: 'Google test login successful',
+      result: {
+        access_token: token,
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          provider: user.provider,
+          role: user.role,
+        }
+      }
+    };
+  }
 
 }

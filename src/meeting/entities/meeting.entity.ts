@@ -1,3 +1,4 @@
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
@@ -5,6 +6,9 @@ export type MeetingDocument = Meeting & Document;
 
 @Schema({ timestamps: true })
 export class Meeting {
+
+  @Prop()
+  userName: string; // now optional
 
   @Prop({ required: true })
   userEmail: string;
@@ -44,6 +48,15 @@ export class Meeting {
 
   @Prop()
   meetingUrl: string;
+
+  @Prop()
+  selectedDate: string;
+
+  @Prop()
+  selectedTime: string;
+
+  @Prop()
+  timezone: string;
 }
 
 export const MeetingSchema = SchemaFactory.createForClass(Meeting);

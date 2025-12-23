@@ -26,199 +26,131 @@ export class EventTypesService {
   ) { }
 
 
-  
-//   async bookEvent(eventId: string, dto: CreateBookingDto, userId: string) {
-//   const event = await this.eventModel.findById(eventId);
-//   if (!event) throw new NotFoundException('Event not found');
 
-//   const bookingDate = new Date(dto.startTime);
-//   const dayName = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
 
-//   // Check weekly availability
-//   const weeklySlot = event.weeklyAvailability.find(
-//     w => w.day === dayName &&
-//          dto.startTime.slice(11,16) >= w.start &&
-//          dto.endTime.slice(11,16) <= w.end
-//   );
+  async bookEvent(eventId: string, dto: CreateBookingDto, userId: string) {
+    const event = await this.eventModel.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
 
-//   // Check single-day availability
-//   const singleSlot = event.singleDayAvailability?.find(
-//     s => s.date.toString().slice(0,10) === dto.startTime.slice(0,10) &&
-//          dto.startTime.slice(11,16) >= s.start &&
-//          dto.endTime.slice(11,16) <= s.end
-//   );
+    const startTime = new Date(dto.startTime);
+    const endTime = new Date(dto.endTime);
 
-//   if (!weeklySlot && !singleSlot) {
-//     throw new BadRequestException('Selected slot is not available');
-//   }
+    //  Check slot conflict (MOST IMPORTANT)
+    const conflict = await this.bookingModel.findOne({
+      eventTypeId: eventId,
+      startTime: startTime,
+    });
 
-//   // Check if max bookings per day exceeded
-//   const bookingsCount = await this.bookingModel.countDocuments({
-//     eventTypeId: eventId,
-//     startTime: {
-//       $gte: new Date(dto.startTime).setHours(0,0,0,0),
-//       $lt: new Date(dto.startTime).setHours(23,59,59,999)
-//     }
-//   });
+    if (conflict) {
+      throw new BadRequestException('This slot is already booked');
+    }
 
-//   if (event.maxBookingsPerDay && bookingsCount >= event.maxBookingsPerDay) {
-//     throw new BadRequestException('Maximum bookings reached for this day');
-//   }
+    //  Max bookings per day
+    const dayStart = new Date(startTime);
+    dayStart.setHours(0, 0, 0, 0);
 
-//   // Save booking
-//   const booking = await this.bookingModel.create({
-//     ...dto,
-//     eventTypeId: eventId,
-//     userId
-//   });
+    const dayEnd = new Date(startTime);
+    dayEnd.setHours(23, 59, 59, 999);
 
-//   return {
-//     statusCode: 201,
-//     message: "Booking successful",
-//     result: { booking },
-//   };
-// }
-async bookEvent(eventId: string, dto: CreateBookingDto, userId: string) {
-  const event = await this.eventModel.findById(eventId);
-  if (!event) throw new NotFoundException('Event not found');
+    const bookingsCount = await this.bookingModel.countDocuments({
+      eventTypeId: eventId,
+      startTime: { $gte: dayStart, $lte: dayEnd },
+    });
 
-  const startTime = new Date(dto.startTime);
-  const endTime = new Date(dto.endTime);
+    if (event.maxBookingsPerDay && bookingsCount >= event.maxBookingsPerDay) {
+      throw new BadRequestException('Maximum bookings reached for this day');
+    }
 
-  // 1️⃣ Check slot conflict (MOST IMPORTANT)
-  const conflict = await this.bookingModel.findOne({
-    eventTypeId: eventId,
-    startTime: startTime,
-  });
+    //  Save booking
+    const booking = await this.bookingModel.create({
+      ...dto,
+      eventTypeId: eventId,
+      userId,
+    });
 
-  if (conflict) {
-    throw new BadRequestException('This slot is already booked');
+    return {
+      statusCode: 201,
+      message: 'Booking successful',
+      result: booking,
+    };
   }
 
-  // 2️⃣ Max bookings per day
-  const dayStart = new Date(startTime);
-  dayStart.setHours(0, 0, 0, 0);
 
-  const dayEnd = new Date(startTime);
-  dayEnd.setHours(23, 59, 59, 999);
 
-  const bookingsCount = await this.bookingModel.countDocuments({
-    eventTypeId: eventId,
-    startTime: { $gte: dayStart, $lte: dayEnd },
-  });
 
-  if (event.maxBookingsPerDay && bookingsCount >= event.maxBookingsPerDay) {
-    throw new BadRequestException('Maximum bookings reached for this day');
+  async create(dto: CreateEventDto, userId: string) {
+    const slug = slugify(dto.title, { lower: true }) + '-' + Date.now();
+
+    //  DEFAULT CALENDLY-LIKE AVAILABILITY
+    const defaultSchedule = {
+      _id: new Types.ObjectId().toHexString(),
+      name: 'Working hours',
+      isActive: true,
+      recurring: [
+        {
+          _id: new Types.ObjectId().toHexString(),
+          day: 'Monday',
+          slots: [{ start: '09:00', end: '17:00' }],
+        },
+        {
+          _id: new Types.ObjectId().toHexString(),
+          day: 'Tuesday',
+          slots: [{ start: '09:00', end: '17:00' }],
+        },
+        {
+          _id: new Types.ObjectId().toHexString(),
+          day: 'Wednesday',
+          slots: [{ start: '09:00', end: '17:00' }],
+        },
+        {
+          _id: new Types.ObjectId().toHexString(),
+          day: 'Thursday',
+          slots: [{ start: '09:00', end: '17:00' }],
+        },
+        {
+          _id: new Types.ObjectId().toHexString(),
+          day: 'Friday',
+          slots: [{ start: '09:00', end: '17:00' }],
+        },
+      ],
+      dateOverrides: [],
+    };
+
+    const eventData: any = {
+      ...dto,
+      userId,
+      slug,
+      schedules: [defaultSchedule],
+    };
+
+    const newEvent = new this.eventModel(eventData);
+    const savedEvent = await newEvent.save();
+
+    return {
+      statusCode: 201,
+      message: 'Event created with default availability',
+      result: savedEvent,
+    };
   }
 
-  // 3️⃣ Save booking
-  const booking = await this.bookingModel.create({
-    ...dto,
-    eventTypeId: eventId,
-    userId,
-  });
 
-  return {
-    statusCode: 201,
-    message: 'Booking successful',
-    result: booking,
-  };
-}
+  // copy link
+  async generateShareLink(id: string) {
+    const event = await this.eventModel.findById(id);
+    if (!event) throw new NotFoundException('Event not found');
 
+    // Frontend URL (where users will join the event)
+    const baseUrl = process.env.FRONTEND_URL || 'http://192.168.0.238:5173';
 
+    // Shareable link
+    const shareUrl = `${baseUrl}/join-event/${event._id}`;
 
-// async create(dto: CreateEventDto, userId: string) {
-//   const slug = slugify(dto.title, { lower: true }) + '-' + Date.now();
-
-//   const eventData: any = {
-//     ...dto,
-//     userId,
-//     slug,
-//   };
-
-//   // Save event
-//   const newEvent = new this.eventModel(eventData);
-//   const savedEvent = await newEvent.save();
-
-//   return {
-//     statusCode: 201,
-//     message: "Event type created successfully",
-//     result: savedEvent,
-//   };
-// }
-async create(dto: CreateEventDto, userId: string) {
-  const slug = slugify(dto.title, { lower: true }) + '-' + Date.now();
-
-  // 🔥 DEFAULT CALENDLY-LIKE AVAILABILITY
-  const defaultSchedule = {
-    _id: new Types.ObjectId().toHexString(),
-    name: 'Working hours',
-    isActive: true,
-    recurring: [
-      {
-        _id: new Types.ObjectId().toHexString(),
-        day: 'Monday',
-        slots: [{ start: '09:00', end: '17:00' }],
-      },
-      {
-        _id: new Types.ObjectId().toHexString(),
-        day: 'Tuesday',
-        slots: [{ start: '09:00', end: '17:00' }],
-      },
-      {
-        _id: new Types.ObjectId().toHexString(),
-        day: 'Wednesday',
-        slots: [{ start: '09:00', end: '17:00' }],
-      },
-      {
-        _id: new Types.ObjectId().toHexString(),
-        day: 'Thursday',
-        slots: [{ start: '09:00', end: '17:00' }],
-      },
-      {
-        _id: new Types.ObjectId().toHexString(),
-        day: 'Friday',
-        slots: [{ start: '09:00', end: '17:00' }],
-      },
-    ],
-    dateOverrides: [],
-  };
-
-  const eventData: any = {
-    ...dto,
-    userId,
-    slug,
-    schedules: [defaultSchedule], 
-  };
-
-  const newEvent = new this.eventModel(eventData);
-  const savedEvent = await newEvent.save();
-
-  return {
-    statusCode: 201,
-    message: 'Event created with default availability',
-    result: savedEvent,
-  };
-}
-
-
-// copy link
-async generateShareLink(id: string) {
-  const event = await this.eventModel.findById(id);
-  if (!event) throw new NotFoundException('Event not found');
-
-  // Frontend URL (where users will join the event)
-  const baseUrl = process.env.FRONTEND_URL || 'http://192.168.0.238:5173';
-
-  // Shareable link
-  const shareUrl = `${baseUrl}/join-event/${event._id}`;
-
-  return {
-    statusCode: 200,
-    message: 'Shareable link generated successfully',
-    result: { shareUrl },
-  };
-}
+    return {
+      statusCode: 200,
+      message: 'Shareable link generated successfully',
+      result: { shareUrl },
+    };
+  }
 
 
 
@@ -227,21 +159,21 @@ async generateShareLink(id: string) {
     return this.eventModel.findOne({ slug });
   }
 
- 
-async findAll() {
-  return this.eventModel.find().lean()
-  .sort({ createdAt: -1 });
-}
 
-async findbyUserId(id:any) {
-  const updatedEvent = await this.eventModel.find({userId:id}).lean()
-  .sort({ createdAt: -1 });
-  return {
-    statusCode: 200,
-    message: "Event status toggled successfully",
-    result: { event: updatedEvent },
-  };
-}
+  async findAll() {
+    return this.eventModel.find().lean()
+      .sort({ createdAt: -1 });
+  }
+
+  async findbyUserId(id: any) {
+    const updatedEvent = await this.eventModel.find({ userId: id }).lean()
+      .sort({ createdAt: -1 });
+    return {
+      statusCode: 200,
+      message: "Event status toggled successfully",
+      result: { event: updatedEvent },
+    };
+  }
 
 
 
@@ -251,84 +183,84 @@ async findbyUserId(id:any) {
     if (!event) throw new BadRequestException('Event not found');
     return event;
   }
- 
+
   async update(id: string, dto: UpdateEventDto, userId: string, userRole: string) {
-  const event = await this.eventModel.findById(id);
-  if (!event) throw new BadRequestException('Event not found');
+    const event = await this.eventModel.findById(id);
+    if (!event) throw new BadRequestException('Event not found');
 
-  // Check permission
-  if (userRole !== 'admin' && event.userId.toString() !== userId) {
-    throw new UnauthorizedException('You cannot edit this event');
+    // Check permission
+    if (userRole !== 'admin' && event.userId.toString() !== userId) {
+      throw new UnauthorizedException('You cannot edit this event');
+    }
+
+    Object.assign(event, dto);
+    const updatedEvent = await event.save();
+
+    return {
+      statusCode: 200,
+      message: "Event updated successfully",
+      result: { event: updatedEvent },
+    };
   }
+  // Toggle event
+  async toggleEvent(id: string, userId: string, userRole: string) {
+    const event = await this.eventModel.findById(id);
+    if (!event) throw new BadRequestException('Event not found');
 
-  Object.assign(event, dto);
-  const updatedEvent = await event.save();
+    if (userRole !== 'admin' && event.userId.toString() !== userId) {
+      throw new UnauthorizedException('You cannot toggle this event');
+    }
 
-  return {
-    statusCode: 200,
-    message: "Event updated successfully",
-    result: { event: updatedEvent },
-  };
-}
+    event.isActive = !event.isActive;
+    const updatedEvent = await event.save();
 
-async toggleEvent(id: string, userId: string, userRole: string) {
-  const event = await this.eventModel.findById(id);
-  if (!event) throw new BadRequestException('Event not found');
-
-  if (userRole !== 'admin' && event.userId.toString() !== userId) {
-    throw new UnauthorizedException('You cannot toggle this event');
+    return {
+      statusCode: 200,
+      message: "Event status toggled successfully",
+      result: { event: updatedEvent },
+    };
   }
+  // Delete
+  async delete(id: string, userId: string, userRole: string) {
+    const event = await this.eventModel.findById(id);
+    if (!event) throw new BadRequestException('Event not found');
 
-  event.isActive = !event.isActive;
-  const updatedEvent = await event.save();
+    if (userRole !== 'admin' && event.userId.toString() !== userId) {
+      throw new UnauthorizedException('You cannot delete this event');
+    }
 
-  return {
-    statusCode: 200,
-    message: "Event status toggled successfully",
-    result: { event: updatedEvent },
-  };
-}
+    await this.eventModel.findByIdAndDelete(id);
 
-async delete(id: string, userId: string, userRole: string) {
-  const event = await this.eventModel.findById(id);
-  if (!event) throw new BadRequestException('Event not found');
-
-  if (userRole !== 'admin' && event.userId.toString() !== userId) {
-    throw new UnauthorizedException('You cannot delete this event');
+    return {
+      statusCode: 200,
+      message: 'Event deleted successfully',
+      result: null,
+    };
   }
+  // Duplicate
+  async duplicate(id: string, userId: string, userRole: string) {
+    const original = await this.eventModel.findById(id);
+    if (!original) throw new NotFoundException('Event not found');
 
-  await this.eventModel.findByIdAndDelete(id);
+    if (userRole !== 'admin' && original.userId.toString() !== userId) {
+      throw new UnauthorizedException('You cannot duplicate this event');
+    }
 
-  return {
-    statusCode: 200,
-    message: 'Event deleted successfully',
-    result: null,
-  };
-}
+    const copy = new this.eventModel({
+      ...original.toObject(),
+      _id: undefined,
+      slug: slugify(original.title + '-copy', { lower: true }) + '-' + Date.now(),
+      userId,
+      createdAt: undefined,
+      updatedAt: undefined,
+    });
 
-async duplicate(id: string, userId: string, userRole: string) {
-  const original = await this.eventModel.findById(id);
-  if (!original) throw new NotFoundException('Event not found');
-
-  if (userRole !== 'admin' && original.userId.toString() !== userId) {
-    throw new UnauthorizedException('You cannot duplicate this event');
+    const duplicatedEvent = await copy.save();
+    return {
+      statusCode: 201,
+      message: "Event duplicated successfully",
+      result: { event: duplicatedEvent },
+    };
   }
-
-  const copy = new this.eventModel({
-    ...original.toObject(),
-    _id: undefined,
-    slug: slugify(original.title + '-copy', { lower: true }) + '-' + Date.now(),
-    userId,
-    createdAt: undefined,
-    updatedAt: undefined,
-  });
-
-  const duplicatedEvent = await copy.save();
-  return {
-    statusCode: 201,
-    message: "Event duplicated successfully",
-    result: { event: duplicatedEvent },
-  };
-}
 
 }
