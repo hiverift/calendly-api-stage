@@ -1,42 +1,48 @@
-
-
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 export type BookingDocument = Booking & Document;
 
 @Schema({ timestamps: true })
 export class Booking {
- 
+
   @Prop({ type: Types.ObjectId, ref: 'EventType', required: true })
   eventTypeId: Types.ObjectId;  // Reference to EventType
 
-  @Prop({ required: true })
-  userId: string;               
+ 
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    default: null,
+  })
+  userId?: Types.ObjectId | null;
+
 
   @Prop({ required: true })
-  slot: string;                 
+  slot: string;
 
   @Prop({ required: false })
-  inviteePhone?: string;    
+  inviteePhone?: string;
 
   @Prop({ required: true })
-  hostId: string;               
+  hostId: string;
 
   @Prop({ required: true })
-  name: string;                 
+  name: string;
 
   @Prop({ required: true })
-  email: string;           
+  email: string;
+
+  @Prop({ type: [String], default: [] })
+  guests: string[];
 
   @Prop({ required: true })
-  startTime: Date;              
+  startTime: Date;
 
   @Prop({ required: true })
-  endTime: Date;                
+  endTime: Date;
 
   @Prop({ type: Object })
-  answers?: any;                
+  answers?: any;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

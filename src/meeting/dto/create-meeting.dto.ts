@@ -9,6 +9,7 @@ import {
   ValidateNested,
   Min,
   Matches,
+  IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -20,6 +21,10 @@ export class CreateMeetingDto {
   @IsString()
   @IsNotEmpty()
   meetingTitle: string;
+
+  @IsOptional()
+  @IsMongoId()
+  eventId?: string;
 
   @IsNumber()
   @Min(1)
@@ -35,7 +40,8 @@ export class CreateMeetingDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => CallDetailsDto)
-  callDetails?: CallDetailsDto;
+  // callDetails?: CallDetailsDto;
+  callDetails?: CallDetailsDto | null;
 
   /** Timezone */
   @IsString()

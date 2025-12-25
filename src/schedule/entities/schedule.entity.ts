@@ -37,6 +37,8 @@ export class DateOverride {
 export class Schedule {
   @Prop({ required: true, unique: true })
   name: string;
+   @Prop({ required: true, type: String })
+  userId: string;
 
   @Prop({ default: true })
   isActive: boolean;

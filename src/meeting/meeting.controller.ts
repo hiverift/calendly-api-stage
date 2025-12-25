@@ -16,16 +16,27 @@ import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { RescheduleMeetingDto } from './dto/reschedule-meeting.dto';
 import { MeetingResponseDto } from './dto/meeting-response.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { Public } from 'src/auth/decorators/public.decorator';
+
 
 @Controller('meetings')
-@UseGuards(JwtAuthGuard) //  apply once
+@UseGuards(JwtAuthGuard)
 export class MeetingsController {
-  constructor(private readonly meetingsService: MeetingsService) {}
+  constructor(private readonly meetingsService: MeetingsService) { }
 
   /** Book meeting */
   @Post('book')
   bookMeeting(@Body() dto: CreateMeetingDto, @Req() req) {
     return this.meetingsService.bookMeeting(req.user, dto);
+  }
+  @Get('time-slots')
+  @Public()
+  getTimeSlots(@Query('date') date: string, @Query('duration') duration: string) {
+    return {
+      statusCode: 200,
+      message: 'Time slots generated successfully',
+      data: this.meetingsService.getTimeSlots(date, Number(duration)),
+    };
   }
 
   /** Get past meetings */
@@ -88,7 +99,8 @@ export class MeetingsController {
   }
 
   /** Reschedule meeting */
-  @Patch(':id')
+  @Patch(':id/reschedule')
+
   async rescheduleMeeting(
     @Param('id') id: string,
     @Body() dto: RescheduleMeetingDto,
@@ -98,6 +110,7 @@ export class MeetingsController {
       id,
       dto,
       req.user.email,
+      //  dto.email,
     );
 
     return {
@@ -108,12 +121,12 @@ export class MeetingsController {
   }
 
   /** Time slots (public / internal utility) */
-  @Get('time-slots')
-  getTimeSlots(@Query('date') date: string, @Query('duration') duration: string) {
-    return {
-      statusCode: 200,
-      message: 'Time slots generated successfully',
-      data: this.meetingsService.getTimeSlots(date, Number(duration)),
-    };
-  }
+  // @Get('time-slots')
+  // getTimeSlots(@Query('date') date: string, @Query('duration') duration: string) {
+  //   return {
+  //     statusCode: 200,
+  //     message: 'Time slots generated successfully',
+  //     data: this.meetingsService.getTimeSlots(date, Number(duration)),
+  //   };
+  // }
 }

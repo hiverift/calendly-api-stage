@@ -61,14 +61,7 @@ async getEvents(from?: string, to?: string) {
     events: response.data.items,
   };
 }
-  // New function to create an event
-  // async createEvent(eventData: {
-  //   attendees: any;
-  //   summary: string;
-  //   description?: string;
-  //   start: string;
-  //   end: string;
-  // }) {
+ 
  async createEvent(eventData: {
   summary: string;
   description?: string;
@@ -95,7 +88,7 @@ async getEvents(from?: string, to?: string) {
 
       attendees: eventData.attendees || [],
 
-      // ✅ THIS IS THE KEY (Google Meet)
+      //  THIS IS THE KEY (Google Meet)
       conferenceData: {
         createRequest: {
           requestId: `meet-${Date.now()}`, // UNIQUE every time
@@ -111,7 +104,7 @@ async getEvents(from?: string, to?: string) {
         'Content-Type': 'application/json',
       },
       params: {
-        conferenceDataVersion: 1, // ❗ MUST
+        conferenceDataVersion: 1, 
         sendUpdates: 'all',
       },
     },
@@ -120,43 +113,57 @@ async getEvents(from?: string, to?: string) {
   return {
     statusCode: 201,
     message: 'Event created with Google Meet',
-    meetLink: response.data.hangoutLink, // ✅ THIS WILL COME
+    meetLink: response.data.hangoutLink, 
     event: response.data,
   };
 }
 
 
-  // CalendarService.ts
-  async updateEvent(eventId: string, eventData: {
+async updateEvent(
+  eventId: string,
+  eventData: {
     summary?: string;
     description?: string;
     start?: string;
     end?: string;
-  }) {
-    const accessToken = await this.googleService.getAccessToken();
+  },
+) {
+  const accessToken = await this.googleService.getAccessToken();
 
-    const body: any = {};
-    if (eventData.summary) body.summary = eventData.summary;
-    if (eventData.description) body.description = eventData.description;
-    if (eventData.start) body.start = { dateTime: eventData.start };
-    if (eventData.end) body.end = { dateTime: eventData.end };
+  // Step 1: Fetch existing event attendees
+  const existingEvent = await axios.get(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
 
-    const response = await axios.put(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
-      body,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    );
+  const attendees = existingEvent.data.attendees || [];
 
-    return {
-      statusCode: 200,
-      message: 'Event updated successfully',
-      event: response.data,
-    };
-  }
+  // Step 2: Build PATCH body
+  const body: any = {
+    attendees, // include attendees so emails are sent
+  };
+
+  if (eventData.summary) body.summary = eventData.summary;
+  if (eventData.description) body.description = eventData.description;
+  if (eventData.start) body.start = { dateTime: eventData.start, timeZone: 'Asia/Kolkata' };
+  if (eventData.end) body.end = { dateTime: eventData.end, timeZone: 'Asia/Kolkata' };
+
+  // Step 3: PATCH request with sendUpdates=all
+  const response = await axios.patch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+    body,
+    {
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      params: { sendUpdates: 'all' }, // ensures emails are sent
+    },
+  );
+
+  return {
+    statusCode: 200,
+    message: 'Event updated successfully (emails sent)',
+    event: response.data,
+  };
+}
 
   // CalendarService.ts
   async deleteEvent(eventId: string) {
@@ -184,7 +191,7 @@ async getEvents(from?: string, to?: string) {
       `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
       {
         status: 'cancelled',
-        description: `❌ Event Cancelled\nReason: ${cancelReason}`,
+        description: ` Event Cancelled\nReason: ${cancelReason}`,
       },
       {
         headers: {

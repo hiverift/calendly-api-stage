@@ -28,14 +28,14 @@ export class EventTypesService {
 
 
 
-  async bookEvent(eventId: string, dto: CreateBookingDto, userId: string) {
+  async bookEvent(eventId: string, dto: CreateBookingDto,) {
     const event = await this.eventModel.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
     const startTime = new Date(dto.startTime);
     const endTime = new Date(dto.endTime);
 
-    //  Check slot conflict (MOST IMPORTANT)
+    //  Check slot conflict 
     const conflict = await this.bookingModel.findOne({
       eventTypeId: eventId,
       startTime: startTime,
@@ -65,7 +65,7 @@ export class EventTypesService {
     const booking = await this.bookingModel.create({
       ...dto,
       eventTypeId: eventId,
-      userId,
+
     });
 
     return {
@@ -76,12 +76,11 @@ export class EventTypesService {
   }
 
 
-
-
+  //create
   async create(dto: CreateEventDto, userId: string) {
     const slug = slugify(dto.title, { lower: true }) + '-' + Date.now();
 
-    //  DEFAULT CALENDLY-LIKE AVAILABILITY
+    //  DEFAULT  AVAILABILITY
     const defaultSchedule = {
       _id: new Types.ObjectId().toHexString(),
       name: 'Working hours',
@@ -139,7 +138,7 @@ export class EventTypesService {
     const event = await this.eventModel.findById(id);
     if (!event) throw new NotFoundException('Event not found');
 
-    // Frontend URL (where users will join the event)
+    // Frontend URL 
     const baseUrl = process.env.FRONTEND_URL || 'http://192.168.0.238:5173';
 
     // Shareable link

@@ -16,17 +16,31 @@ export class SlotsService {
 
   /* -------------------- HELPERS -------------------- */
 
+  // private isPastSlot(date: string, time: string, timezone: string) {
+  //   const now = new Date(
+  //     new Date().toLocaleString('en-US', { timeZone: timezone }),
+  //   );
+
+  //   const [h, m] = time.split(':').map(Number);
+  //   const slotDate = new Date(date);
+  //   slotDate.setHours(h, m, 0, 0);
+
+  //   return slotDate <= now;
+  // }
   private isPastSlot(date: string, time: string, timezone: string) {
-    const now = new Date(
-      new Date().toLocaleString('en-US', { timeZone: timezone }),
-    );
+  if (!time) return false; // skip invalid slots
 
-    const [h, m] = time.split(':').map(Number);
-    const slotDate = new Date(date);
-    slotDate.setHours(h, m, 0, 0);
+  const now = new Date(
+    new Date().toLocaleString('en-US', { timeZone: timezone }),
+  );
 
-    return slotDate <= now;
-  }
+  const [h, m] = time.split(':').map(Number);
+  const slotDate = new Date(date);
+  slotDate.setHours(h, m, 0, 0);
+
+  return slotDate <= now;
+}
+
 
   /* -------------------- CREATE -------------------- */
 

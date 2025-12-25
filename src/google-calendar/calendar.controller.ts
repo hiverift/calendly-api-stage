@@ -32,8 +32,8 @@ export class CalendarController {
     @Headers() headers: Record<string, string>,
     @Req() req: Request,
   ) {
-    console.log('🔔 Webhook Headers:', headers);
-    console.log('📦 Webhook Body:', req.body);
+    console.log(' Webhook Headers:', headers);
+    console.log(' Webhook Body:', req.body);
 
     return { status: 'ok' };
   }

@@ -1,5 +1,5 @@
 
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsArray } from 'class-validator';
 
 export class RescheduleMeetingDto {
   @IsString()
@@ -11,4 +11,17 @@ export class RescheduleMeetingDto {
   @IsOptional()
   @IsNumber()
   duration?: number;
+
+  @IsOptional()
+  @IsArray()
+  guests?: string[];
+
+  @IsOptional()
+  @IsString()
+  reasonForChange?: string;
+
+  @IsOptional()
+  @IsString()
+  preparationNotes?: string;
+  
 }

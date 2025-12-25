@@ -7,6 +7,7 @@ import {
 import { AvailabilityService } from './available.service';
 import { AvailabilityController } from './available.controller';
 import {GoogleCalendarModule  } from '../google-calendar/google-calendar.module'; 
+import { Schedule, ScheduleSchema } from 'src/schedule/entities/schedule.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import {GoogleCalendarModule  } from '../google-calendar/google-calendar.module'
       { name: Availability.name, schema: AvailabilitySchema },
    
     ]),
+      MongooseModule.forFeature([{ name: Schedule.name, schema: ScheduleSchema }]),
    GoogleCalendarModule ,
   ],
   controllers: [AvailabilityController],

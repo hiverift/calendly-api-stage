@@ -1,17 +1,27 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { IsOptional } from 'class-validator';
+import mongoose, { Document } from 'mongoose';
 
 export type MeetingDocument = Meeting & Document;
 
 @Schema({ timestamps: true })
 export class Meeting {
 
+  
+
   @Prop()
   userName: string; // now optional
 
   @Prop({ required: true })
   userEmail: string;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
+    default: null,
+  })
+  eventId?: mongoose.Types.ObjectId;
 
   @Prop({ required: true })
   meetingTitle: string;
@@ -25,6 +35,7 @@ export class Meeting {
   @Prop()
   whoCallsWho: string;
 
+   
   @Prop()
   inviteePhoneNumber: string;
 
@@ -48,6 +59,12 @@ export class Meeting {
 
   @Prop()
   meetingUrl: string;
+  @Prop({ default: null })
+  rescheduleReason?: string;
+
+  // (optional but recommended)
+  @Prop({ default: null })
+  rescheduledAt?: Date;
 
   @Prop()
   selectedDate: string;

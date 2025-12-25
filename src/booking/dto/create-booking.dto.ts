@@ -1,10 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsArray } from 'class-validator';
 
 export class CreateBookingDto {
   @IsString()
   @IsNotEmpty()
   slot: string;
-
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   inviteePhone: string;
@@ -20,6 +20,10 @@ export class CreateBookingDto {
   @IsString()
   @IsNotEmpty()
   email: string;
+
+  @IsArray()
+  @IsOptional()
+  guests?: string[];
 
   @IsDateString()
   @IsNotEmpty()

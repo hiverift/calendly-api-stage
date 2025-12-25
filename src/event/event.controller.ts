@@ -4,6 +4,9 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CreateBookingDto } from 'src/booking/dto/create-booking.dto';
+import { Public } from 'src/auth/decorators/public.decorator';
+
+
 
 
 
@@ -22,10 +25,16 @@ export class EventTypesController {
     return this.eventService.duplicate(id, req.user.id, req.user.role);
   }
 
-  @Post(':id/book')
-  bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto, @Req() req) {
-    return this.eventService.bookEvent(id, dto, req.user.id);
-  }
+  // @Post(':id/book')
+  //  @Public()
+  // bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto, @Req() req) {
+  //   return this.eventService.bookEvent(id, dto, req.user.id);
+  // }
+@Post(':id/book')
+@Public() // now truly public, no token required
+bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto) {
+  return this.eventService.bookEvent(id, dto); // remove req.user.id
+}
 
   @Get()
   findAll(@Req() req) {
@@ -43,6 +52,7 @@ export class EventTypesController {
   }
 
   @Get(':id')
+  @Public()
   findOne(@Param('id') id: string) {
     return this.eventService.findOne(id);
   }
@@ -70,3 +80,4 @@ export class EventTypesController {
 
 
 }
+
