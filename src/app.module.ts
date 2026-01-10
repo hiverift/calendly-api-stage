@@ -35,7 +35,11 @@ dotenv.config({ path: './.env' });
     //   exclude: ['/api'],
 
     // }),
-    MongooseModule.forRoot(process.env.MONGO_URI as string),
+    MongooseModule.forRoot(process.env.MONGO_URI as string,
+      {
+        
+      }
+    ),
     AuthModule,
     UserModule,
     EventModule,

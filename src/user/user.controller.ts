@@ -17,7 +17,7 @@ import { UserService } from './user.service';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   // MULTER CONFIG
   private static multerOptions = {
@@ -66,9 +66,44 @@ export class UserController {
     return this.userService.update(id, dto, file);
   }
 
+  @Patch(':id/calendar-status')
+  updateCalendarStatus(
+    @Param('id') id: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.userService.updateCalendarStatus(id, isActive);
+  }
+  @Post(':id/request-delete')
+  async requestDelete(@Param('id') id: string) {
+    const result = await this.userService.requestDelete(id);
+    return {
+      statusCode: 201,
+      message: result.message,
+      result: result.user, // or any extra data you want
+    };
+  }
+
+  // Step 2: Verify OTP → deletes user
+  // Verify OTP → delete user
+  @Post(':id/verify-delete')
+  async verifyDelete(@Param('id') id: string, @Body('otp') otp: string) {
+    const result = await this.userService.verifyDelete(id, otp);
+    return {
+      statusCode: 200,
+      message: result.message,
+      result: result.deleted,
+    };
+  }
+
+
   // DELETE USER
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(id);
+  async remove(@Param('id') id: string) {
+    const result = await this.userService.remove(id);
+    return {
+      statusCode: 200,
+      message: result.message,
+      result: result.deleted,
+    };
   }
 }

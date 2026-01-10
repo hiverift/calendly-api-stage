@@ -239,16 +239,39 @@ export class AuthService {
       message: 'Password reset successful',
     };
   }
-  async googleCallback(code: string) {
-    const oauthClient = this.googleService.getClient();
+  // async googleCallback(code: string) {
+  //   const oauthClient = this.googleService.getClient();
 
-    const { tokens } = await oauthClient.getToken(code);
+  //   const { tokens } = await oauthClient.getToken(code);
 
-    // Abhi sirf test ke liye
-    console.log('GOOGLE TOKENS ', tokens);
+  //   // Abhi sirf test ke liye
+  //   console.log('GOOGLE TOKENS ', tokens);
 
-    return tokens;
+  //   return tokens;
+  // }
+  async googleCallback(code: string, userId: string) {
+  const oauthClient = this.googleService.getClient();
+
+  const { tokens } = await oauthClient.getToken(code);
+
+  if (!tokens.access_token) {
+    throw new BadRequestException('Google authorization failed');
   }
+
+  //  UPDATE USER HERE
+  await this.userService.update(userId, {
+    googleAccessToken: tokens.access_token,
+    googleRefreshToken: tokens.refresh_token,
+    isGoogleCalendarActive: true,
+    googleCalendarConnectedAt: new Date(),
+  });
+
+  return {
+    statusCode: 200,
+    message: 'Google Calendar connected successfully',
+  };
+}
+
   // google test login
   async googleTestLogin(email: string) {
     let user = await this.userService.findByEmailUser(email);

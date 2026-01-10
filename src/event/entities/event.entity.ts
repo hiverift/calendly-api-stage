@@ -11,9 +11,9 @@ interface Slot {
 }
 
 export interface RecurringSlot {
-  _id: string;          // unique id for this day
-  day: string;          // Monday, Tuesday, etc.
-  slots: Slot[];        // array of slot objects
+  _id: string;          
+  day: string;          
+  slots: Slot[];        
 }
 
 
@@ -32,53 +32,11 @@ export interface Schedule {
   dateOverrides: DateOverride[];
 }
 
-// @Schema({ timestamps: true })
-// export class EventType {
-//   @Prop({ required: true })
-//   title: string;
 
-//   @Prop()
-//   type: string; // one-on-one, group, etc.
-
-//   @Prop()
-//   duration: number; // in minutes
-
-//   @Prop()
-//   mode: string; // single, recurring, both
-
-//   @Prop({ type: [{ 
-//     _id: String,
-//     name: { type: String, required: true },
-//     isActive: { type: Boolean, default: true },
-//     recurring: [{ _id: String, day: String, slots: [{ start: String, end: String }] }],
-//     dateOverrides: [{ _id: String, date: String, slots: [{ start: String, end: String }], isUnavailable: Boolean }]
-//   }], default: [] })
-//   schedules: Schedule[];
-
- 
-//   @Prop({ default: 10 })
-//   maxBookingsPerDay: number;
-
-//   @Prop({ default: 'UTC' })
-//   timezone: string;
-
-//   @Prop()
-//   location: string;
-
-//   @Prop()
-//   userId: string;
-
-//   @Prop()
-//   slug: string;
-
-//   // Optional root-level active flag
-//   @Prop({ default: true })
-//   isActive: boolean;
-// }
 @Schema({ timestamps: true })
 export class EventType {
   @Prop({ type: String, default: () => new Types.ObjectId().toHexString() })
-  _id: string;  // <- force root _id to be string
+  _id: string;  
 
   @Prop({ required: true })
   title: string;

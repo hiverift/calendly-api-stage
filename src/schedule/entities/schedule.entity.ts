@@ -15,7 +15,7 @@ export class Slot {
 @Schema()
 export class RecurringAvailability {
   @Prop({ required: true })
-  day: number; // 0 = Sunday
+  day: number;
 
   @Prop({ type: [Slot], default: [] })
   slots: Slot[];
@@ -35,10 +35,16 @@ export class DateOverride {
 
 @Schema({ timestamps: true })
 export class Schedule {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   name: string;
-   @Prop({ required: true, type: String })
-  userId: string;
+  // @Prop({ required: true, type: String })
+  // userId: string;
+  @Prop({ type: String, default: null })
+  userId?: string;
+
+
+  @Prop({ default: 'Asia/Kolkata' })
+  timezone: string;
 
   @Prop({ default: true })
   isActive: boolean;
@@ -48,6 +54,16 @@ export class Schedule {
 
   @Prop({ type: [DateOverride], default: [] })
   dateOverrides: DateOverride[];
+
+
+  // ✅ Add this
+  @Prop({ default: false })
+  isDefault: boolean;
 }
 
 export const ScheduleSchema = SchemaFactory.createForClass(Schedule);
+ScheduleSchema.index(
+  { name: 1, userId: 1 },
+  { unique: true }
+);
+

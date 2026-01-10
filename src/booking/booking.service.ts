@@ -1,160 +1,207 @@
-
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Booking, BookingDocument } from './entities/booking.entity';
-import { EventType, EventTypeDocument } from '../event/entities/event.entity';
-import { Slot } from '../utils/slot.interface';
-import { generateSlots } from '../utils/slot-generator';
-import { CreateBookingDto } from './dto/create-booking.dto';
+import { Model } from 'mongoose';
+import axios from 'axios';
+import * as nodemailer from 'nodemailer';
+import { DateTime } from 'luxon';
+import { v4 as uuidv4 } from 'uuid';
+
+import { Booking } from './entities/booking.entity';
+import { Meeting } from 'src/meeting/entities/meeting.entity';
+import { User } from 'src/user/entities/user.entity';
+import { EventType } from 'src/event/entities/event.entity';
 
 @Injectable()
 export class BookingService {
   constructor(
-    @InjectModel(Booking.name)
-    private bookingModel: Model<Booking & BookingDocument>,
-
-    @InjectModel(EventType.name)
-    private eventModel: Model<EventType & EventTypeDocument>,
+    @InjectModel(Booking.name) private bookingModel: Model<Booking>,
+    @InjectModel(Meeting.name) private meetingModel: Model<Meeting>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(EventType.name) private eventTypeModel: Model<EventType>,
   ) {}
 
-  private weekdayMap: Record<string, string> = {
-    Sunday: 'Sun',
-    Monday: 'Mon',
-    Tuesday: 'Tue',
-    Wednesday: 'Wed',
-    Thursday: 'Thu',
-    Friday: 'Fri',
-    Saturday: 'Sat',
-  };
-
-  // Get available slots for a given date
-  async getAvailableSlots(slug: string, date: string) {
-    const event = await this.eventModel.findOne({ slug });
-    if (!event) throw new BadRequestException('Event not found');
-
-    const activeSchedule = event.schedules.find(s => s.isActive);
-    if (!activeSchedule) throw new BadRequestException('No active schedule found');
-
-    const requestedDate = new Date(date);
-    const dayFull = requestedDate.toLocaleDateString('en-US', { weekday: 'long' });
-    const dayName = this.weekdayMap[dayFull];
-
-    const dayAvailability = activeSchedule.recurring.find(d => d.day === dayName);
-    if (!dayAvailability) {
-      return { statusCode: 200, message: `No availability on ${dayFull}`, slots: [] };
-    }
-
-    const allSlots: Slot[] = generateSlots(
-      dayAvailability.slots,
-      event.duration,
-      date
-    );
-
-    // Filter out already booked slots
-    const startOfDay = new Date(`${date}T00:00:00.000Z`);
-    const endOfDay = new Date(`${date}T23:59:59.999Z`);
-
-    const booked = await this.bookingModel.find({
-      eventTypeId: event._id,
-      startTime: { $gte: startOfDay, $lte: endOfDay },
-    });
-
-    const available = allSlots.filter(slot => {
-      const slotStart = new Date(slot.startUTC);
-      const slotEnd = new Date(slot.endUTC);
-      return !booked.some(b => b.startTime < slotEnd && b.endTime > slotStart);
-    });
-
-    return {
-      statusCode: 200,
-      message: 'Available slots retrieved successfully',
-      slots: available.map(s => ({
-        startTime: s.startUTC,
-        endTime: s.endUTC,
-        label: s.label,
-      })),
-    };
+  // ✅ sirf DATE rakhega (time hata dega)
+  private stripTime(dateString: string): Date {
+    const d = new Date(dateString);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
   }
 
-  // Book a slot
-  async book(dto: CreateBookingDto & {
-    eventId: string;
-    userId: string;
-    name: string;
-    email: string;
-    startTime: string;
-    endTime: string;
-    hostId: string;
-    answers?: any;
-  }) {
-    const { eventId, userId, name, email, slot, startTime, endTime, hostId, answers } = dto;
-
-    const event = await this.eventModel.findById(eventId);
-    if (!event) throw new BadRequestException('Invalid event');
-
-    const activeSchedule = event.schedules.find(s => s.isActive);
-    if (!activeSchedule) throw new BadRequestException('No active schedule');
-
-    const bookingDate = new Date(startTime);
-    const dayNameFull = bookingDate.toLocaleDateString('en-US', { weekday: 'long' });
-    const dayName = this.weekdayMap[dayNameFull];
-
-    const dayAvailability = activeSchedule.recurring.find(d => d.day === dayName);
-    if (!dayAvailability) throw new BadRequestException(`Bookings not allowed on ${dayNameFull}`);
-
-    const [availStartH, availStartM] = dayAvailability.slots[0].start.split(':').map(Number);
-    const [availEndH, availEndM] = dayAvailability.slots[0].end.split(':').map(Number);
-
-    const availStart = new Date(bookingDate);
-    availStart.setHours(availStartH, availStartM, 0, 0);
-
-    const availEnd = new Date(bookingDate);
-    availEnd.setHours(availEndH, availEndM, 0, 0);
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (start < availStart || end > availEnd) {
-      throw new BadRequestException(
-        `Booking time must be between ${dayAvailability.slots[0].start} and ${dayAvailability.slots[0].end}`
+  private async getAccessToken(): Promise<string> {
+    try {
+      const response = await axios.post(
+        'https://oauth2.googleapis.com/token',
+        {
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+          grant_type: 'refresh_token',
+        },
+        { headers: { 'Content-Type': 'application/json' } },
       );
+      return response.data.access_token;
+    } catch (error) {
+      console.error('Google Token Error:', error.response?.data || error.message);
+      throw new InternalServerErrorException('Failed to generate Google access token');
     }
+  }
 
-    const isBooked = await this.bookingModel.findOne({
-      eventTypeId: event._id,
-      hostId,
-      $or: [{ startTime: { $lt: end }, endTime: { $gt: start } }],
-    });
+  private async sendMeetingEmail(to: string, meeting: any) {
+    if (!to) return;
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT),
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
 
-    if (isBooked) throw new BadRequestException('Slot already booked for this host');
+      await transporter.sendMail({
+        from: `"YourApp" <${process.env.SMTP_USER}>`,
+        to,
+        subject: `Meeting Scheduled: ${meeting.meetingTitle}`,
+        html: `
+          <p>Hello,</p>
+          <p>Your meeting <b>${meeting.meetingTitle}</b> is confirmed.</p>
+          <p><b>Date:</b> ${DateTime.fromJSDate(meeting.startTime)
+            .setZone(meeting.timezone)
+            .toFormat('yyyy-MM-dd')}</p>
+        `,
+      });
+    } catch (err) {
+      console.error('Failed to send email to', to, err.message);
+    }
+  }
 
-    const booking = await this.bookingModel.create({
-      eventTypeId: event._id,
-      userId,
+  async book(dto: any) {
+    const {
+      eventTypeId,
+      eventtitle,
       name,
       email,
       slot,
-      startTime: start,
-      endTime: end,
+      startTime,
+      endTime,
       hostId,
-      answers: answers || {},
+      answers,
+      guests = [],
+    } = dto;
+
+    // ✅ DATE ONLY
+    const startDateOnly = this.stripTime(startTime);
+    const endDateOnly = this.stripTime(endTime);
+
+    const hostUser = await this.userModel.findById(hostId);
+    if (!hostUser) throw new BadRequestException('Host not found');
+
+    // ✅ FIXED CONFLICT CHECK
+    // same host + same date + same slot ❌
+    // same date + different slot ✅
+    const conflictingBooking = await this.bookingModel.findOne({
+      hostId: hostUser._id,
+      startTime: startDateOnly,
+      slot: slot,
     });
+
+    if (conflictingBooking) {
+      throw new BadRequestException('This time slot is already booked for the host');
+    }
+
+    // ✅ BOOKING CREATE
+    const booking = await this.bookingModel.create({
+      userId: hostUser._id,
+      eventtitle,
+      eventTypeId,
+      hostId,
+      name,
+      email,
+      slot,
+      startTime: startDateOnly,
+      endTime: endDateOnly,
+      answers,
+      guests,
+      bookingSource: 'public',
+      timezone: 'Asia/Kolkata',
+    });
+
+    // ✅ MEETING CREATE
+    const meeting = await this.meetingModel.create({
+      bookingSource: 'public',
+      eventId: eventTypeId,
+      meetingTitle: eventtitle || 'Meeting',
+
+      userId: hostUser._id,
+      userEmail: hostUser.email,
+      userName: hostUser.name,
+      startTime: startDateOnly,
+      endTime: endDateOnly,
+      timezone: 'Asia/Kolkata',
+      hosts: [
+        {
+          userId: hostUser._id,
+          name: hostUser.name,
+          email: hostUser.email,
+          timeZone: 'Asia/Kolkata',
+        },
+      ],
+      contacts: guests.map((g) => ({ email: g })),
+      callDetails: { inviteeEmail: email },
+      duration: dto.duration || 30,
+      slug: uuidv4(),
+      meetingUrl: `https://yourapp.com/meet/${uuidv4()}`,
+    });
+
+    // GOOGLE CALENDAR (unchanged)
+    try {
+      const accessToken = await this.getAccessToken();
+      await axios.post(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+        {
+          summary: meeting.meetingTitle,
+          description: 'Meeting scheduled via YourApp',
+          start: { dateTime: meeting.startTime.toISOString(), timeZone: meeting.timezone },
+          end: { dateTime: meeting.endTime.toISOString(), timeZone: meeting.timezone },
+          attendees: [
+            ...guests.map((g) => ({ email: g })),
+            { email: hostUser.email },
+          ],
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${Date.now()}`,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
+          },
+        },
+        {
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          params: { conferenceDataVersion: 1, sendUpdates: 'all' },
+        },
+      );
+    } catch (err) {
+      console.error('Google Calendar Error:', err.response?.data || err.message);
+    }
 
     return {
       statusCode: 201,
       message: 'Booking successful',
       result: {
-        bookingId: booking._id,
-        eventId: booking.eventTypeId,
-        userId: booking.userId,
+        _id: booking._id,
+        eventTitle: booking.eventtitle,
+        slot: booking.slot,
         hostId: booking.hostId,
         name: booking.name,
         email: booking.email,
-        slot: booking.slot,
+        bookingSource: 'public',
+        eventTypeId: booking.eventTypeId,
+        guests: booking.guests,
         startTime: booking.startTime,
         endTime: booking.endTime,
         answers: booking.answers,
+        timezone: booking.timezone,
+        __v: booking.__v,
       },
     };
   }

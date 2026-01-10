@@ -6,10 +6,6 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CreateBookingDto } from 'src/booking/dto/create-booking.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 
-
-
-
-
 @UseGuards(JwtAuthGuard)
 @Controller('event-types')
 export class EventTypesController {
@@ -25,20 +21,16 @@ export class EventTypesController {
     return this.eventService.duplicate(id, req.user.id, req.user.role);
   }
 
-  // @Post(':id/book')
-  //  @Public()
-  // bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto, @Req() req) {
-  //   return this.eventService.bookEvent(id, dto, req.user.id);
-  // }
-@Post(':id/book')
-@Public() // now truly public, no token required
-bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto) {
-  return this.eventService.bookEvent(id, dto); // remove req.user.id
-}
+
+  @Post(':id/book')
+  @Public() // now truly public, no token required
+  bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto) {
+    return this.eventService.bookEvent(id, dto); // remove req.user.id
+  }
 
   @Get()
   findAll(@Req() req) {
-   
+
     return this.eventService.findAll();
   }
   @Get('slug/:slug')
@@ -46,9 +38,16 @@ bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto) {
   getBySlug(@Param('slug') slug: string) {
     return this.eventService.findBySlug(slug);
   }
+
   @Get(':id/share-link')
+  @Public()
   getShareLink(@Param('id') id: string) {
     return this.eventService.generateShareLink(id);
+  }
+
+  @Get('my-events')
+  getMyEvents(@Req() req) {
+    return this.eventService.findByUserId(req.user.id);
   }
 
   @Get(':id')
@@ -57,10 +56,11 @@ bookEvent(@Param('id') id: string, @Body() dto: CreateBookingDto) {
     return this.eventService.findOne(id);
   }
 
-  @Get('findByUserid/:id')
-  findbyUserId(@Param('id') id: string) {
-    return this.eventService.findbyUserId(id);
-  }
+  // @Get('findByUserid/:id')
+  // findByUserId(@Param('id') id: string) {
+  //   return this.eventService.findByUserId(id);
+  // }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateEventDto, @Req() req) {
     return this.eventService.update(id, dto, req.user.id, req.user.role);

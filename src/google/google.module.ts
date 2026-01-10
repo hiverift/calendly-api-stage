@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { GoogleController } from './google.Controller';
 import { GoogleService } from './google.service';
+import { GoogleController } from './google.Controller';
 
 @Module({
-  controllers: [GoogleController],
   providers: [GoogleService],
-  exports: [GoogleService],
+  exports: [GoogleService], // <-- allows other modules to inject it
+  controllers: [GoogleController],
 })
 export class GoogleModule {}

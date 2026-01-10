@@ -4,5 +4,5 @@ import { IsString, IsNotEmpty } from 'class-validator';
 export class CreateScheduleDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name?: string;
 }

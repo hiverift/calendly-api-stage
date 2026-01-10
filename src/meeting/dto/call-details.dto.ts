@@ -8,8 +8,8 @@ export class CallDetailsDto {
   hostPhone?: string;
 
   @IsOptional()
-  @IsEmail()
-  hostEmail?: string;
+  @IsString()
+  hostphone?: string;
 
   //  when HOST_CALLS_INVITEE
   @IsOptional()
@@ -20,7 +20,7 @@ export class CallDetailsDto {
   @IsEmail()
   inviteeEmail?: string;
 
-  //  optional extra info (extension, bridge etc.)
+  //  extra info (extension, bridge etc.)
   @IsOptional()
   @IsString()
   additionalInfo?: string;

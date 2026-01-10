@@ -7,6 +7,8 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateBookingDto } from 'src/booking/dto/create-booking.dto';
 import { Booking } from 'src/booking/entities/booking.entity';
 import { Types } from 'mongoose';
+import { DateTime } from 'luxon';
+
 
 const slugify = require('slugify');
 
@@ -24,33 +26,79 @@ export class EventTypesService {
 
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
   ) { }
+  private slotToUTC(date: string, time: string, tz: string) {
+    return DateTime
+      .fromISO(`${date}T${time}`, { zone: tz })
+      .toUTC()
+      .toJSDate();
+  }
+  async bookEvent(eventId: string, dto: CreateBookingDto) {
+    dto.bookingSource = 'public';
 
-
-
-
-  async bookEvent(eventId: string, dto: CreateBookingDto,) {
     const event = await this.eventModel.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
-    const startTime = new Date(dto.startTime);
-    const endTime = new Date(dto.endTime);
+    let startTime: Date;
+    let endTime: Date;
 
-    //  Check slot conflict 
+    /**
+     * CASE 1: Frontend sends ISO datetime
+     * Example: 2026-01-03T11:00:00+05:30
+     */
+    if (dto.startTime?.includes('T')) {
+      const start = DateTime.fromISO(dto.startTime);
+      const end = DateTime.fromISO(dto.endTime);
+
+      if (!start.isValid || !end.isValid) {
+        throw new BadRequestException('Invalid startTime or endTime');
+      }
+
+      startTime = start.toUTC().toJSDate();
+      endTime = end.toUTC().toJSDate();
+
+      // Auto-derive date if not sent
+      if (!dto.date) {
+        dto.date = start.toISODate();
+      }
+    }
+
+    
+    else {
+      if (!dto.date) {
+        throw new BadRequestException(
+          'date is required when using time-only format',
+        );
+      }
+
+      if (!dto.startTime || !dto.endTime) {
+        throw new BadRequestException('startTime and endTime are required');
+      }
+
+      // Now TypeScript KNOWS these are strings
+      startTime = this.slotToUTC(dto.date, dto.startTime, event.timezone);
+      endTime = this.slotToUTC(dto.date, dto.endTime, event.timezone);
+    }
+
+    /**
+     * Conflict check
+     */
     const conflict = await this.bookingModel.findOne({
       eventTypeId: eventId,
-      startTime: startTime,
+      startTime,
     });
 
     if (conflict) {
       throw new BadRequestException('This slot is already booked');
     }
 
-    //  Max bookings per day
+    /**
+     * Daily booking limit
+     */
     const dayStart = new Date(startTime);
-    dayStart.setHours(0, 0, 0, 0);
+    dayStart.setUTCHours(0, 0, 0, 0);
 
     const dayEnd = new Date(startTime);
-    dayEnd.setHours(23, 59, 59, 999);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const bookingsCount = await this.bookingModel.countDocuments({
       eventTypeId: eventId,
@@ -61,11 +109,14 @@ export class EventTypesService {
       throw new BadRequestException('Maximum bookings reached for this day');
     }
 
-    //  Save booking
+    /**
+     * Create booking
+     */
     const booking = await this.bookingModel.create({
       ...dto,
       eventTypeId: eventId,
-
+      startTime,
+      endTime,
     });
 
     return {
@@ -74,6 +125,54 @@ export class EventTypesService {
       result: booking,
     };
   }
+
+
+  // async bookEvent(eventId: string, dto: CreateBookingDto) {
+  //   dto.bookingSource = 'public';
+
+  //   const event = await this.eventModel.findById(eventId);
+  //   if (!event) throw new NotFoundException('Event not found');
+
+  //   const startTime = this.slotToUTC(dto.date, dto.startTime, event.timezone);
+  //   const endTime = this.slotToUTC(dto.date, dto.endTime, event.timezone);
+
+  //   const conflict = await this.bookingModel.findOne({
+  //     eventTypeId: eventId,
+  //     startTime,
+  //   });
+
+  //   if (conflict) {
+  //     throw new BadRequestException('This slot is already booked');
+  //   }
+
+  //   const dayStart = new Date(startTime);
+  //   dayStart.setUTCHours(0, 0, 0, 0);
+
+  //   const dayEnd = new Date(startTime);
+  //   dayEnd.setUTCHours(23, 59, 59, 999);
+
+  //   const bookingsCount = await this.bookingModel.countDocuments({
+  //     eventTypeId: eventId,
+  //     startTime: { $gte: dayStart, $lte: dayEnd },
+  //   });
+
+  //   if (event.maxBookingsPerDay && bookingsCount >= event.maxBookingsPerDay) {
+  //     throw new BadRequestException('Maximum bookings reached for this day');
+  //   }
+
+  //   const booking = await this.bookingModel.create({
+  //     ...dto,
+  //     eventTypeId: eventId,
+  //     startTime,
+  //     endTime,
+  //   });
+
+  //   return {
+  //     statusCode: 201,
+  //     message: 'Booking successful',
+  //     result: booking,
+  //   };
+  // }
 
 
   //create
@@ -164,15 +263,28 @@ export class EventTypesService {
       .sort({ createdAt: -1 });
   }
 
-  async findbyUserId(id: any) {
-    const updatedEvent = await this.eventModel.find({ userId: id }).lean()
+  // async findbyUserId(id: any) {
+  //   const updatedEvent = await this.eventModel.find({ userId: id }).lean()
+  //     .sort({ createdAt: -1 });
+  //   return {
+  //     statusCode: 200,
+  //     message: "Event status toggled successfully",
+  //     result: { event: updatedEvent },
+  //   };
+  // }
+  async findByUserId(userId: string) {
+    const events = await this.eventModel
+      .find({ userId })
+      .lean()
       .sort({ createdAt: -1 });
+
     return {
       statusCode: 200,
-      message: "Event status toggled successfully",
-      result: { event: updatedEvent },
+      message: 'User events fetched successfully',
+      result: events,
     };
   }
+
 
 
 

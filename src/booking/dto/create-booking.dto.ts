@@ -1,38 +1,53 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsEmail } from 'class-validator';
 
 export class CreateBookingDto {
-  @IsString()
-  @IsNotEmpty()
-  slot: string;
+
+  // optional date for timezone conversion
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  inviteePhone: string;
+  date?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  hostId: string;
+  slot?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  inviteePhone?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  email: string;
+  hostId?: string;
 
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
   @IsArray()
-  @IsOptional()
   guests?: string[];
 
-  @IsDateString()
-  @IsNotEmpty()
-  startTime: string;
-
-  @IsDateString()
-  @IsNotEmpty()
-  endTime: string;
+  // frontend sends HH:mm or ISO
+  @IsOptional()
+  @IsString()
+  startTime?: string;
 
   @IsOptional()
-  answers?: any;
+  @IsString()
+  endTime?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  answers?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  bookingSource?: string;
 }

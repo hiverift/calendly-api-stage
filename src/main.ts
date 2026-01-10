@@ -10,25 +10,25 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,               
-      forbidNonWhitelisted: true,  
-      transform: true,               
-      forbidUnknownValues: false,     
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
+      forbidUnknownValues: false,
     }),
   );
 
   // app.enableCors("*")
-//   app.enableCors({
-//   origin: 'http://localhost:5173', // React dev URL
-//   credentials: true,
-// });
-app.enableCors({
-  origin: [
-    'http://localhost:5173',
-    'http://192.168.0.238:5173'
-  ],
-  credentials: true,
-});
+  //   app.enableCors({
+  //   origin: 'http://localhost:5173', // React dev URL
+  //   credentials: true,
+  // });
+  app.enableCors({
+    origin: [
+      'http://localhost:5173',
+      'http://192.168.0.238:5173'
+    ],
+    credentials: true,
+  });
 
 
 

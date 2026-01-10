@@ -1,164 +1,142 @@
 
-// import { BadRequestException, Body, Controller, Post, Query, Req, UseGuards } from '@nestjs/common';
-// import { AuthGuard } from '@nestjs/passport';
-// import { Get, Param } from '@nestjs/common';
-// import { AvailabilityService } from './available.service';
-// import { CreateAvailabilityDto } from './dto/create-available.dto';
-
-// @Controller('availability')
-// @UseGuards(AuthGuard('jwt'))
-// export class AvailabilityController {
-//   constructor(private readonly availabilityService: AvailabilityService) {}
-// @Post()
-// async createAvailability(
-//   @Body() body: CreateAvailabilityDto,
-//   @Req() req,
-// ) {
-//   const data = await this.availabilityService.create(
-//     body,
-//     req.user.id,
-//   );
-
-//   return {
-//     statusCode: 201,
-//     message: 'Availability created successfully',
-//     result: data,
-//   };
-// }
-
-  
-// @Get('schedule/:scheduleId')
-// async getAvailabilityBySchedule(
-//   @Param('scheduleId') scheduleId: string,
-//   @Req() req,
-// ) {
-//   const data = await this.availabilityService.getByScheduleId(
-//     scheduleId,
-//     req.user.id,
-//   );
-
-//   return {
-//     statusCode: 200,
-//     message: 'Availability fetched successfully',
-//     result: data,
-//   };
-// }
-
-// @Get()
-// async getByMonth(
-//   @Query('month') month: string,
-//   @Query('scheduleId') scheduleId: string,
-//   @Query('eventId') eventId: string,
-//   @Query('useGoogleCalendar') useGoogleCalendar: string,
-//   @Req() req,
-// ) {
-//   const data = await this.availabilityService.getByMonth(
-//     month,
-//     req.user.id,
-//     scheduleId,
-//     useGoogleCalendar === 'true',
-//     eventId,
-//   );
-
-//   return {
-//     statusCode: 200,
-//     message: 'Monthly availability fetched successfully',
-//     result: data, // REAL DATA
-//   };
-// }
-
-
-
-// }
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AvailabilityService } from './available.service';
-import { CreateAvailabilityDto } from './dto/create-available.dto';
+import { CreateAvailabilityDto, CreateEventAvailabilityDto } from './dto/create-available.dto';
 
 @Controller('availability')
 @UseGuards(AuthGuard('jwt'))
 export class AvailabilityController {
-  constructor(private readonly availabilityService: AvailabilityService) {}
+  constructor(private readonly availabilityService: AvailabilityService) { }
 
-
-@Post()
-async createAvailability(
-  @Query('weekly') weekly: string,
-  @Body() dto: CreateAvailabilityDto,
-) {
-  //  Create availability
-  const createdData = await this.availabilityService.create(dto);
-
-  //  Weekly response if requested
-  if (weekly === 'true') {
-    const weeklyData = await this.availabilityService.getWeeklyAvailability(
-      dto.scheduleId,
-    );
-
+  @Post()
+  async create(@Body() dto: CreateAvailabilityDto) {
+    const data = await this.availabilityService.create(dto);
     return {
       statusCode: 201,
-      message: 'Availability created successfully',
-      result: weeklyData,
+      message: 'Availability saved',
+      result: data,
     };
   }
 
-  return {
-    statusCode: 201,
-    message: 'Availability created successfully',
-    result: createdData,
-  };
-}
+  @Post('events')
+  async createForEvents(@Body() dto: CreateEventAvailabilityDto) {
+    const data = await this.availabilityService.createForEvents(dto);
+    return {
+      statusCode: 201,
+      message: 'Availability saved for events',
+      result: data,
+    };
+  }
+
+  @Patch(':scheduleId/user/:userId')
+  async updateAvailability(
+    @Param('scheduleId') scheduleId: string,
+    @Param('userId') userId: string,
+    @Body() body: any,
+  ) {
+    return this.availabilityService.update(
+      scheduleId,
+      userId,
+      body,
+    );
+  }
 
 
-@Get('schedule/:scheduleId')
-async getAvailabilityBySchedule(@Param('scheduleId') scheduleId: string) {
-  const data = await this.availabilityService.getByScheduleId(scheduleId);
+  @Delete(':scheduleId/user/:userId')
+  async deleteAvailability(
+    @Param('scheduleId') scheduleId: string,
+    @Param('userId') userId: string,
+    @Body() body: any,
+  ) {
+    const data = await this.availabilityService.deleteBulk(
+      scheduleId,
+      userId,
+      body,
+    );
 
-  return {
-    statusCode: 200,
-    message: 'Availability fetched successfully',
-    result: data,
-  };
-}
+    return {
+      statusCode: 200,
+      message: 'Availability deleted',
+      result: data,
+    };
+  }
 
-@Get('weekly/:scheduleId')
-async getWeeklyAvailability(@Param('scheduleId') scheduleId: string) {
-  const data = await this.availabilityService.getWeeklyAvailability(scheduleId);
 
-  return {
-    statusCode: 200,
-    message: 'Weekly availability fetched successfully',
-    result: data,
-  };
-}
+  @Get('schedule/:scheduleId')
+  async getBySchedule(@Param('scheduleId') scheduleId: string) {
+    const data = await this.availabilityService.getByScheduleId(scheduleId);
+    return {
+      statusCode: 200,
+      message: 'Schedule availability fetched',
+      result: data,
+    };
+  }
 
-@Get()
-async getByMonth(
-  @Query('month') month: string,
-  @Query('scheduleId') scheduleId: string,
-  @Query('eventId') eventId?: string,
-  @Query('useGoogleCalendar') useGoogleCalendar?: string,
-) {
-  const data = await this.availabilityService.getByMonth(
-    month,
-    scheduleId,
-    useGoogleCalendar === 'true',
-    eventId,
-  );
+  @Get('schedule/:scheduleId/user/:userId')
+  async getByScheduleAndUser(
+    @Param('scheduleId') scheduleId: string,
+    @Param('userId') userId: string,
+  ) {
+    const data =
+      await this.availabilityService.getByScheduleIdAndUserId(
+        scheduleId,
+        userId,
+      );
+    return {
+      statusCode: 200,
+      message: 'User schedule availability fetched',
+      result: data,
+    };
+  }
+  // @Get('events')
+  // async getAvailabilityForEvents(
+  //   @Query('userId') userId: string,
+  //   @Query('eventId') eventId: string,
+  // ) {
+  //   const data = await this.availabilityService.getByEventAndUser(
+  //     userId,
+  //     eventId,
+  //   );
 
-  return {
-    statusCode: 200,
-    message: 'Monthly availability fetched successfully',
-    result: data,
-  };
-}
+  //   return {
+  //     statusCode: 200,
+  //     message: 'Event availability fetched',
+  //     result: data,
+  //   };
+  // }
+  @Get('events')
+  async getAvailabilityForEvents(@Query('userId') userId: string, @Query('eventId') eventId: string) {
+    // 🔹 here availabilityService must exist
+    return this.availabilityService.getByEventAndUser(userId, eventId);
+  }
+
+  @Get('slots')
+  async getSlots(
+    @Query('scheduleId') scheduleId: string,
+    @Query('date') date: string,
+    @Query('duration') duration?: string,
+  ) {
+    const data = await this.availabilityService.getSlots(
+      scheduleId,
+      date,
+      Number(duration) || 15,
+    );
+    return {
+      statusCode: 200,
+      message: 'Available slots fetched',
+      result: data,
+    };
+  }
 }

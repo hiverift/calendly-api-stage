@@ -72,4 +72,9 @@ export class CreateMeetingDto {
   @ValidateNested({ each: true })
   @Type(() => QuestionAnswerDto)
   contactQuestions?: QuestionAnswerDto[];
+  @IsOptional()
+  @IsEnum(['dashboard'])  
+  bookingSource?: 'dashboard' ;
 }
+
+

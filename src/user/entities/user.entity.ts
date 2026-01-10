@@ -12,7 +12,7 @@ export class User {
 
   @Prop({ required: true, unique: true })
   email: string;
-   @Prop() // optional if not always present
+  @Prop() // optional if not always present
   phoneNumber?: string;
 
   @Prop({ type: String, required: false, default: null })
@@ -36,10 +36,21 @@ export class User {
   @Prop({ required: false, default: null })
   avatar?: string;
 
-  @Prop({  required: false })
+  @Prop({ required: false })
   welcomeMessage: string;
 
+  @Prop()
+  googleAccessToken?: string;
 
+  @Prop()
+  googleRefreshToken?: string;
+  @Prop({ default: false })
+  isGoogleCalendarActive?: boolean;
+
+  @Prop()
+  googleCalendarConnectedAt?: Date;
+  // @Prop({ required: false })
+  // CalendarStatus?: string;
   @Prop({ type: String, default: 'English' })
   language: string;
   @Prop({ type: String, default: 'DD/MM/YYYY' })
@@ -52,6 +63,7 @@ export class User {
   timeZone: string;
   @Prop({ type: String, required: false })
   profileImage: string; // store URL or file path
+  static timeZone: string;
 
 }
 

@@ -26,6 +26,7 @@ export class MeetingsController {
 
   /** Book meeting */
   @Post('book')
+  @Public()
   bookMeeting(@Body() dto: CreateMeetingDto, @Req() req) {
     return this.meetingsService.bookMeeting(req.user, dto);
   }
@@ -52,18 +53,40 @@ export class MeetingsController {
   }
 
   /** Get upcoming meetings */
-  @Get('upcoming')
-  async getUpcomingMeetings(@Req() req): Promise<MeetingResponseDto> {
-    const meetings = await this.meetingsService.getUpcomingMeetings(
-      req.user.email,
-    );
+  // @Get('upcoming')
+  // async getUpcomingMeetings(@Req() req): Promise<MeetingResponseDto> {
+  //   const meetings = await this.meetingsService.getUpcomingMeetings(
+  //     req.user.email,
+  //   );
 
-    return {
-      statusCode: 200,
-      message: 'Upcoming meetings fetched successfully',
-      data: meetings,
-    };
+  //   return {
+  //     statusCode: 200,
+  //     message: 'Upcoming meetings fetched successfully',
+  //     data: meetings,
+  //   };
+  // }
+  /** Get upcoming meetings (MEETINGS + EVENT BOOKINGS) */
+  // @Get('upcoming')
+  // async getUpcomingMeetings(@Req() req): Promise<MeetingResponseDto> {
+  //   const meetings = await this.meetingsService.getAllUpcomingMeetings(req.user);
+
+  //  return await this.meetingsService.getAllUpcomingMeetings(req.user);
+  // }
+  @Get('upcoming')
+  async getAllUpcomingMeetings(@Req() req): Promise<MeetingResponseDto> {
+    const user = req.user;
+    if (!user || !user.email) {
+      return {
+        statusCode: 400,
+        message: 'User info missing',
+        data: [],
+      };
+    }
+
+    // Service already returns proper DTO with both meeting types
+    return await this.meetingsService.getAllUpcomingMeetings(user);
   }
+
 
   /** Get meeting by ID */
   @Get(':id')
@@ -82,6 +105,26 @@ export class MeetingsController {
       data: meeting,
     };
   }
+  /** Get meeting by slug (for the link in email) */
+  // @Get('slug/:slug')
+  // @Public() // allow public access from email link
+  // async getMeetingBySlug(@Param('slug') slug: string) {
+  //   const meeting = await this.meetingsService.getMeetingBySlug(slug);
+  //   if (!meeting) {
+  //     return {
+  //       statusCode: 404,
+  //       message: 'Meeting not found',
+  //       data: null,
+  //     };
+  //   }
+
+  //   return {
+  //     statusCode: 200,
+  //     message: 'Meeting fetched successfully',
+  //     data: meeting,
+  //   };
+  // }
+
 
   /** Delete meeting */
   @Delete(':id')
@@ -99,34 +142,35 @@ export class MeetingsController {
   }
 
   /** Reschedule meeting */
-  @Patch(':id/reschedule')
+  // @Patch(':id/reschedule')
 
-  async rescheduleMeeting(
+  // async rescheduleMeeting(
+  //   @Param('id') id: string,
+  //   @Body() dto: RescheduleMeetingDto,
+  //   @Req() req,
+  // ): Promise<MeetingResponseDto> {
+  //   const result = await this.meetingsService.rescheduleMeeting(
+  //     id,
+  //     dto,
+  //     req.user.email,
+  //     //  dto.email,
+  //   );
+
+  //   return {
+  //     statusCode: 200,
+  //     message: 'Meeting rescheduled successfully',
+  //     data: result,
+  //   };
+  // }
+
+  @Patch(':id/reschedule')
+  rescheduleMeeting(
     @Param('id') id: string,
     @Body() dto: RescheduleMeetingDto,
     @Req() req,
-  ): Promise<MeetingResponseDto> {
-    const result = await this.meetingsService.rescheduleMeeting(
-      id,
-      dto,
-      req.user.email,
-      //  dto.email,
-    );
-
-    return {
-      statusCode: 200,
-      message: 'Meeting rescheduled successfully',
-      data: result,
-    };
+  ) {
+    return this.meetingsService.rescheduleMeeting(id, dto, req.user);
   }
 
-  /** Time slots (public / internal utility) */
-  // @Get('time-slots')
-  // getTimeSlots(@Query('date') date: string, @Query('duration') duration: string) {
-  //   return {
-  //     statusCode: 200,
-  //     message: 'Time slots generated successfully',
-  //     data: this.meetingsService.getTimeSlots(date, Number(duration)),
-  //   };
-  // }
+
 }

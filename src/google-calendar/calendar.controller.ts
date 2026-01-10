@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req ,Headers} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, Headers } from '@nestjs/common';
 import { CalendarService } from './calendar.service';
 import express from 'express';
 
@@ -14,7 +14,7 @@ export class CalendarController {
     return this.calendarService.getBusySlots(from, to);
   }
 
-    @Post('create')
+  @Post('create')
   async createEvent(
     @Body()
     body: {
@@ -27,7 +27,7 @@ export class CalendarController {
   ) {
     return this.calendarService.createEvent(body);
   }
- @Post('webhook')
+  @Post('webhook')
   handleGoogleWebhook(
     @Headers() headers: Record<string, string>,
     @Req() req: Request,
@@ -59,13 +59,13 @@ export class CalendarController {
     return this.calendarService.updateEvent(eventId, body);
   }
 
-  // CalendarController.ts
+ 
   @Delete('delete/:eventId')
   async deleteEvent(@Param('eventId') eventId: string) {
     return this.calendarService.deleteEvent(eventId);
   }
 
-   @Patch('cancel/:eventId')
+  @Patch('cancel/:eventId')
   async cancelEvent(
     @Param('eventId') eventId: string,
     @Body() body: { cancelReason: string },

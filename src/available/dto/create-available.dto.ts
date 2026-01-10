@@ -1,33 +1,92 @@
+import { IsString, IsArray, IsOptional, ValidateNested, IsMongoId } from 'class-validator';
+import { Type } from 'class-transformer';
 
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+class SlotDto {
+  @IsString()
+  start: string;
+
+  @IsString()
+  end: string;
+}
+
+class WeeklyAvailabilityDto {
+  @IsString()
+  day: string;
+
+  //   @IsArray()
+  //   @ValidateNested({ each: true })
+  //   @Type(() => SlotDto)
+  //   slots: SlotDto[];
+  // }
+  @IsOptional() // ✅ IMPORTANT
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SlotDto)
+  slots?: SlotDto[]; // ✅ optional
+}
+
+class DateAvailabilityDto {
+  @IsString()
+  date: string;
+
+
+  @IsOptional() // ✅ IMPORTANT
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SlotDto)
+  slots?: SlotDto[]; // ✅ optional
+}
+
 
 export class CreateAvailabilityDto {
-   @IsNotEmpty()
-   @IsString()
-  scheduleId: string;
-
   @IsOptional()
-  @IsString()
-  name?: string;
+  @IsMongoId()
+  scheduleId?: string;
 
-  // Single date (backward compatibility)
-  @IsOptional()
-  @IsString()
-  date?: string;
-
-  //  Multiple dates
-  @IsOptional()
-  @IsArray()
-  @IsNotEmpty({ each: true })
-  dates?: string[];
-
-  @IsArray()
-  slots: {
-    start: string;
-    end: string;
-  }[];
+  @IsMongoId()
+  userId: string;
 
   @IsOptional()
   @IsString()
   timezone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => WeeklyAvailabilityDto)
+  weekly?: WeeklyAvailabilityDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DateAvailabilityDto)
+  dates?: DateAvailabilityDto[];
+}
+export class CreateEventAvailabilityDto {
+  @IsMongoId()
+  userId: string;
+  @IsArray()
+  @IsString({ each: true })
+  eventIds: string[];
+
+  @IsOptional()
+  @IsMongoId() // ✅ make scheduleId optional
+  scheduleId?: string;
+
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => WeeklyAvailabilityDto)
+  weekly?: WeeklyAvailabilityDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DateAvailabilityDto)
+  dates?: DateAvailabilityDto[];
 }
